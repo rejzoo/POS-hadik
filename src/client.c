@@ -4,12 +4,14 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <termios.h>
 #include "menu.h"
 
-#define PORT 8080
+#define PORT 8090
 
 void startServer() {
     pid_t pid = fork();
+    printf("PID: %d\n", pid);
     if (pid == 0) {
         execl("./server", "./server", NULL);
         perror("Failed to start server"); // Wont get there if the server starts
@@ -22,10 +24,31 @@ void startServer() {
     }
 }
 
+char getKey() {
+    struct termios oldt, newt;
+    char ch;
+
+    // Get current terminal settings
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+
+    // Disable canonical mode and echo
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    // Read a single character
+    ch = getchar();
+
+    // Restore old terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+    return ch;
+}
+
 // Function to join the game by connecting to the server
 void joinGame() {
     sleep(2); // Wait a bit for server to start
-    int status, client_fd;
+    int client_fd;
     struct sockaddr_in serv_addr;
 
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -41,13 +64,13 @@ void joinGame() {
         exit(EXIT_FAILURE);
     }
 
-    if ((status = connect(client_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr))) < 0) {
+    if (connect(client_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         printf("\nCLIENT: Connection failed. \n");
         exit(EXIT_FAILURE);
     }
 
     while (1) {
-        char key = getchar();
+        char key = getKey();
         send(client_fd, &key, 1, 0);
         if (key == 'q') break; // Quit on 'q'
     }
