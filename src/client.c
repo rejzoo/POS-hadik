@@ -5,15 +5,34 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <termios.h>
+#include <pthread.h>
 #include "menu.h"
 
+// TODO make util class ?
 #define PORT 8090
+#define MAX_CLIENTS 4
+#define MAX_BODY_LENGTH 50
+
+typedef struct {
+  int x, y;
+} Position;
+
+typedef struct {
+  int map_size;
+  int n_snakes;
+  Position snakes_heads[MAX_CLIENTS];
+  Position snakes_bodies[MAX_BODY_LENGTH * MAX_CLIENTS];
+  Position foods[MAX_CLIENTS];
+} DataFromServer;
 
 void startServer() {
+    char mapSizeStr[5];
+    fgets(mapSizeStr, sizeof(mapSizeStr), stdin);
+
     pid_t pid = fork();
     printf("PID: %d\n", pid);
     if (pid == 0) {
-        execl("./server", "./server", NULL);
+        execl("./server", "./server", mapSizeStr, NULL);
         perror("Failed to start server"); // Wont get there if the server starts
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
@@ -24,28 +43,99 @@ void startServer() {
     }
 }
 
+// Get insta input without printing
 char getKey() {
     struct termios oldt, newt;
     char ch;
 
-    // Get current terminal settings
     tcgetattr(STDIN_FILENO, &oldt);
     newt = oldt;
 
-    // Disable canonical mode and echo
     newt.c_lflag &= ~(ICANON | ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
-    // Read a single character
     ch = getchar();
 
-    // Restore old terminal settings
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 
     return ch;
 }
 
-// Function to join the game by connecting to the server
+void drawGame(const DataFromServer *serverData) {
+    clear();
+    int map_size = serverData->map_size;
+
+    // i j reversed
+    char grid[map_size + 2][map_size + 2];
+    for (int i = 0; i < map_size + 2; i++) {
+        for (int j = 0; j < map_size + 2; j++) {
+            if ((i == 0 || i == map_size + 1) || (j == 0 || j == map_size + 1)) {
+                grid[j][i] = '#';
+            } else {
+                grid[j][i] = ' ';
+            }
+        }
+    }
+
+    for (int i = 0; i < serverData->n_snakes; i++) {
+        grid[serverData->snakes_heads[i].x][serverData->snakes_heads[i].y] = 'S';
+    }
+
+    for (int i = 0; i < serverData->n_snakes; i++) {
+        grid[serverData->foods[i].x][serverData->foods[i].y] = 'F';
+    }
+
+    for (int i = 0; i < map_size + 2; i++) {
+        for (int j = 0; j < map_size + 2; j++) {
+            printw("%c", grid[j][i]);
+        }
+        printw("\n");
+    }
+
+    refresh();
+}
+
+void parseData(const char *data, DataFromServer *serverData) {
+    const char *ptr = data;
+    sscanf(ptr, "%d", &serverData->map_size);
+    ptr = strchr(ptr, ' ') + 1;
+
+    sscanf(ptr, "%d", &serverData->n_snakes);
+    ptr = strchr(ptr, ' ') + 1;
+
+    for (int i = 0; i < serverData->n_snakes; i++) {
+        sscanf(ptr, "%d %d", &serverData->snakes_heads[i].x, &serverData->snakes_heads[i].y);
+        ptr = strchr(ptr, ' ') + 1;
+    }
+}
+
+void *receiveUpdates(void *arg) {
+    int client_fd = *(int *)arg;
+    char buffer[1024];
+    
+    DataFromServer serverData;
+    
+   while (1) {
+        ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+        if (bytes_received > 0) {
+            buffer[bytes_received] = '\0';
+            
+            parseData(buffer, &serverData);
+            
+            drawGame(&serverData);
+        } else if (bytes_received == 0) {
+            printw("Server disconnected.\n");
+            refresh();
+            break;
+        } else {
+            perror("recv");
+            break;
+        }
+    } 
+
+    return NULL;
+}
+
 void joinGame() {
     sleep(2); // Wait a bit for server to start
     int client_fd;
@@ -69,13 +159,28 @@ void joinGame() {
         exit(EXIT_FAILURE);
     }
 
+    initscr();
+    cbreak();
+    noecho();
+    curs_set(0);
+    keypad(stdscr, TRUE);
+
+    pthread_t update_thread;
+    pthread_create(&update_thread, NULL, receiveUpdates, &client_fd);
+
     while (1) {
         char key = getKey();
-        send(client_fd, &key, 1, 0);
+        if (key == 'w' || key == 'a' || key == 's' || key == 'd') {
+            send(client_fd, &key, 1, 0);
+        }
+
         if (key == 'q') break; // Quit on 'q'
     }
 
     close(client_fd);
+    pthread_cancel(update_thread);
+    pthread_join(update_thread, NULL);
+    endwin();
 }
 
 int main() {
