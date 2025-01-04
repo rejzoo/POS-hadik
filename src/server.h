@@ -12,8 +12,15 @@
 
 #define PORT 8090
 #define MAX_CLIENTS 4
+#define MAX_LENGTH 99
 
 typedef struct {
+  int x, y;
+} Position;
+
+typedef struct {
+  Position body[MAX_LENGTH];
+  int n_body;
   int socket;
   int x, y;
   int dx, dy;
@@ -21,12 +28,8 @@ typedef struct {
 } Snake;
 
 typedef struct {
-  int x, y;
-} Food;
-
-typedef struct {
   Snake snakes[MAX_CLIENTS];
-  Food food[MAX_CLIENTS];
+  Position food[MAX_CLIENTS];
   int n_clients;
   int map_size;
   pthread_mutex_t mutex;

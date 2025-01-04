@@ -48,7 +48,7 @@ int* acceptClientConnection(int server_fd, struct sockaddr_in *address) {
 }
 
 int generateCords(GameState *game) {
-     return (rand() % (game->map_size - 1)) + 2;
+     return (rand() % game->map_size) + 1;
 }
 
 void *handleClient(void *arg) {
@@ -92,6 +92,7 @@ void initSnake(Snake *snake, int socket, int start_x, int start_y) {
     snake->dx = 1;
     snake->dy = 0;
     snake->alive = 1;
+    snake->n_body = 0;
 }
 
 void addClient(GameState *game, int socket) {
@@ -124,6 +125,10 @@ void checkFoodCollision(GameState *game) {
         if (game->snakes[i].alive) {
             for (int j = 0; j < game->n_clients; j++) {
                 if (game->snakes[i].x == game->food[j].x && game->snakes[i].y == game->food[j].y) {
+                    
+                    game->snakes[i].body[game->snakes[i].n_body++] = 
+                            (Position){game->snakes[i].x - game->snakes[i].dx, game->snakes[i].y - game->snakes[i].dy};
+
                     game->food[j].x = generateCords(game);
                     game->food[j].y = generateCords(game);
                 }
@@ -141,16 +146,28 @@ void broadcastGameState(GameState *game) {
     offset += snprintf(buffer + offset, sizeof(buffer) - offset, "%d ", game->map_size);
 
     int alive_snakes = 0;
+    int total_bodies = 0;
+
     for (int i = 0; i < game->n_clients; i++) {
         if (game->snakes[i].alive) {
             alive_snakes++;
+            total_bodies += game->snakes[i].n_body;
         }
     }
+
     offset += snprintf(buffer + offset, sizeof(buffer) - offset, "%d ", alive_snakes);
+
+    offset += snprintf(buffer + offset, sizeof(buffer) - offset, "%d ", total_bodies);
 
     for (int i = 0; i < game->n_clients; i++) {
         if (game->snakes[i].alive) {
             offset += snprintf(buffer + offset, sizeof(buffer) - offset, "%d %d ", game->snakes[i].x, game->snakes[i].y);
+        }
+    }
+
+    for (int i = 0; i < game->n_clients; i++) {
+        for (int j = 0; j < game->snakes[i].n_body; j++) {
+            offset += snprintf(buffer + offset, sizeof(buffer) - offset, "%d %d ", game->snakes[i].body[j].x, game->snakes[i].body[j].y);
         }
     }
 
@@ -175,6 +192,14 @@ void *gameLoop(void *arg) {
 
         for (int i = 0; i < game->n_clients; i++) {
             if (game->snakes[i].alive) {
+                if (game->snakes[i].n_body > 0) {
+                    for (int j = game->snakes[i].n_body - 1; j > 0; j--) {
+                        game->snakes[i].body[j] = game->snakes[i].body[j - 1];
+                    }
+                    
+                    game->snakes[i].body[0] = (Position) { game->snakes[i].x, game->snakes[i].y };
+                }
+
                 game->snakes[i].x += game->snakes[i].dx;
                 game->snakes[i].y += game->snakes[i].dy;
 
@@ -190,8 +215,8 @@ void *gameLoop(void *arg) {
 
         broadcastGameState(game);
 
-        sleep(2);
-        //usleep(300000);
+        //sleep(2);
+        usleep(300000);
     }
     return NULL;
 }

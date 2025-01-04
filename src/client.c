@@ -11,7 +11,7 @@
 // TODO make util class ?
 #define PORT 8090
 #define MAX_CLIENTS 4
-#define MAX_BODY_LENGTH 50
+#define MAX_BODY_LENGTH 99
 
 typedef struct {
   int x, y;
@@ -20,6 +20,7 @@ typedef struct {
 typedef struct {
   int map_size;
   int n_snakes;
+  int n_bodies;
   Position snakes_heads[MAX_CLIENTS];
   Position snakes_bodies[MAX_BODY_LENGTH * MAX_CLIENTS];
   Position foods[MAX_CLIENTS];
@@ -78,11 +79,15 @@ void drawGame(const DataFromServer *serverData) {
     }
 
     for (int i = 0; i < serverData->n_snakes; i++) {
-        grid[serverData->snakes_heads[i].x][serverData->snakes_heads[i].y] = 'S';
+        grid[serverData->snakes_heads[i].x][serverData->snakes_heads[i].y] = 'O';
+    }
+
+    for (int i = 0; i < serverData->n_bodies; i++) {
+        grid[serverData->snakes_bodies[i].x][serverData->snakes_bodies[i].y] = 'o';
     }
 
     for (int i = 0; i < serverData->n_snakes; i++) {
-        grid[serverData->foods[i].x][serverData->foods[i].y] = 'F';
+        grid[serverData->foods[i].x][serverData->foods[i].y] = '+';
     }
 
     for (int i = 0; i < map_size + 2; i++) {
@@ -104,10 +109,19 @@ void parseData(const char *data, DataFromServer *serverData) {
     sscanf(ptr, "%d", &serverData->n_snakes);
     ptr = strchr(ptr, ' ') + 1;
 
+    sscanf(ptr, "%d", &serverData->n_bodies);
+    ptr = strchr(ptr, ' ') + 1;
+
     for (int i = 0; i < serverData->n_snakes; i++) {
         sscanf(ptr, "%d %d", &serverData->snakes_heads[i].x, &serverData->snakes_heads[i].y);
         ptr = strchr(ptr, ' ') + 1;
         ptr = strchr(ptr, ' ') + 1; //Hack fix for bug
+    }
+
+    for (int i = 0; i < serverData->n_bodies; i++) {
+        sscanf(ptr, "%d %d", &serverData->snakes_bodies[i].x, &serverData->snakes_bodies[i].y);
+        ptr = strchr(ptr, ' ') + 1;
+        ptr = strchr(ptr, ' ') + 1;
     }
 
     for (int i = 0; i < serverData->n_snakes; i++) {
@@ -120,7 +134,8 @@ void parseData(const char *data, DataFromServer *serverData) {
 void *receiveUpdates(void *arg) {
     int client_fd = *(int *)arg;
     char buffer[1024];
-    
+    int status_alive;
+
     DataFromServer serverData;
     
    while (1) {
@@ -138,6 +153,12 @@ void *receiveUpdates(void *arg) {
         } else {
             perror("recv");
             break;
+        }
+
+        bytes_received = recv(client_fd, &status_alive, sizeof(buffer) - 1, 0);
+        if (bytes_received > 0 && status_alive == 0) {
+            int choice = deathScreen();
+            handleChoice(choice);
         }
     } 
 
@@ -191,10 +212,25 @@ void joinGame() {
     endwin();
 }
 
+void handleChoice(int choice) {
+    switch(choice) {
+        case 0: // New game
+            startServer();
+            joinGame();
+            break;
+        case 1: // Join game
+            joinGame();
+            break;
+        case 2: // Exit
+            exit(EXIT_SUCCESS);
+    }
+}
+
 int main() {
     
-    int option = mainMenu();
-    
+    int choice = mainMenu();
+    handleChoice(choice); 
+    /*
     switch (option) {
         case 0: // New Game
             printf("Starting a new game...\n");
@@ -209,7 +245,7 @@ int main() {
             printf("Exiting...\n");
             exit(EXIT_SUCCESS);
             break;
-    }
+    }*/
 
     return 0;
 }
