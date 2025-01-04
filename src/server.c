@@ -47,6 +47,10 @@ int* acceptClientConnection(int server_fd, struct sockaddr_in *address) {
     return new_socket;
 }
 
+int generateCords(GameState *game) {
+     return (rand() % (game->map_size - 1)) + 2;
+}
+
 void *handleClient(void *arg) {
     ThreadArgs *args = (ThreadArgs *)arg;
     GameState *game = args->game;
@@ -94,9 +98,9 @@ void addClient(GameState *game, int socket) {
     pthread_mutex_lock(&game->mutex);
     
     int index = game->n_clients++;
-    initSnake(&game->snakes[index], socket, 3, 3); //3 and 3 placeholder
-    game->food[index].x = 4;
-    game->food[index].y = 4; //4 and 4 placeholder
+    initSnake(&game->snakes[index], socket, generateCords(game), generateCords(game));
+    game->food[index].x = generateCords(game);
+    game->food[index].y = generateCords(game);
   
     pthread_mutex_unlock(&game->mutex);
 }  
@@ -120,8 +124,8 @@ void checkFoodCollision(GameState *game) {
         if (game->snakes[i].alive) {
             for (int j = 0; j < game->n_clients; j++) {
                 if (game->snakes[i].x == game->food[j].x && game->snakes[i].y == game->food[j].y) {
-                    game->food[j].x = 4;
-                    game->food[j].y = 4;
+                    game->food[j].x = generateCords(game);
+                    game->food[j].y = generateCords(game);
                 }
             }
         }
@@ -130,7 +134,7 @@ void checkFoodCollision(GameState *game) {
 
 void broadcastGameState(GameState *game) {
     pthread_mutex_lock(&game->mutex);
-
+    
     char buffer[1024];
     int offset = 0;
 
@@ -182,18 +186,18 @@ void *gameLoop(void *arg) {
         }
 
         checkFoodCollision(game);
-
         pthread_mutex_unlock(&game->mutex);
 
         broadcastGameState(game);
 
-        usleep(300000);
+        sleep(2);
+        //usleep(300000);
     }
     return NULL;
 }
 
 int main(int argc, char *argv[]) {
-   
+    srand(time(NULL));
     int map_size = atoi(argv[1]);
 
     GameState game = { .n_clients = 0, .map_size = map_size, .mutex = PTHREAD_MUTEX_INITIALIZER };

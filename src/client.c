@@ -97,6 +97,7 @@ void drawGame(const DataFromServer *serverData) {
 
 void parseData(const char *data, DataFromServer *serverData) {
     const char *ptr = data;
+
     sscanf(ptr, "%d", &serverData->map_size);
     ptr = strchr(ptr, ' ') + 1;
 
@@ -105,6 +106,13 @@ void parseData(const char *data, DataFromServer *serverData) {
 
     for (int i = 0; i < serverData->n_snakes; i++) {
         sscanf(ptr, "%d %d", &serverData->snakes_heads[i].x, &serverData->snakes_heads[i].y);
+        ptr = strchr(ptr, ' ') + 1;
+        ptr = strchr(ptr, ' ') + 1; //Hack fix for bug
+    }
+
+    for (int i = 0; i < serverData->n_snakes; i++) {
+        sscanf(ptr, "%d %d", &serverData->foods[i].x, &serverData->foods[i].y);
+        ptr = strchr(ptr, ' ') + 1;
         ptr = strchr(ptr, ' ') + 1;
     }
 }

@@ -49,5 +49,6 @@ void removeClient(GameState *game, int socket);
 void checkFoodCollision(GameState *game);
 void broadcastGameState(GameState *game);
 void *gameLoop(void *arg);
+int generateCords(GameState *game);
 
 #endif
