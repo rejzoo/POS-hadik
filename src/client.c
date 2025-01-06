@@ -1,30 +1,4 @@
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <termios.h>
-#include <pthread.h>
-#include "menu.h"
-
-// TODO make util class ?
-#define PORT 8090
-#define MAX_CLIENTS 4
-#define MAX_BODY_LENGTH 99
-
-typedef struct {
-  int x, y;
-} Position;
-
-typedef struct {
-  int map_size;
-  int n_snakes;
-  int n_bodies;
-  Position snakes_heads[MAX_CLIENTS];
-  Position snakes_bodies[MAX_BODY_LENGTH * MAX_CLIENTS];
-  Position foods[MAX_CLIENTS];
-} DataFromServer;
+#include "client.h"
 
 void startServer() {
     char mapSizeStr[5];
@@ -134,32 +108,29 @@ void parseData(const char *data, DataFromServer *serverData) {
 void *receiveUpdates(void *arg) {
     int client_fd = *(int *)arg;
     char buffer[1024];
-    int status_alive;
 
     DataFromServer serverData;
     
-   while (1) {
+    while (1) {
         ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
         if (bytes_received > 0) {
             buffer[bytes_received] = '\0';
             
             parseData(buffer, &serverData);
-            
+
             drawGame(&serverData);
+            printf("DRAW\n");
         } else if (bytes_received == 0) {
-            printw("Server disconnected.\n");
+            clear();
             refresh();
+            int choice = deathScreen();
+            handleChoice(choice);
             break;
         } else {
             perror("recv");
             break;
         }
 
-        bytes_received = recv(client_fd, &status_alive, sizeof(buffer) - 1, 0);
-        if (bytes_received > 0 && status_alive == 0) {
-            int choice = deathScreen();
-            handleChoice(choice);
-        }
     } 
 
     return NULL;

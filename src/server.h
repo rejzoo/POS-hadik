@@ -9,6 +9,7 @@
 #include <stdio.h>      // perror()
 #include <string.h>     // memset()
 #include <pthread.h>    // threads
+#include <fcntl.h>
 
 #define PORT 8090
 #define MAX_CLIENTS 4

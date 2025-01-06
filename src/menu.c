@@ -36,7 +36,7 @@ int displayMenu(char *options[], int n_options) {
     while (1) {
         printMenu(menuWin, highlight, options, n_options);
         int c = wgetch(menuWin);
-
+        printf("%c\n", c);
         switch (c) {
             case KEY_UP:
                 if (highlight > 0) highlight--;
@@ -48,7 +48,6 @@ int displayMenu(char *options[], int n_options) {
                 choice = highlight;
                 break;
         }
-
         if (choice != -1) break;
     }
 
@@ -78,5 +77,14 @@ int pauseMenu() {
   };
 
   return displayMenu(options, PAUSED_MENU_OPTIONS);
+}
+
+int deathScreen() {
+  char *options[DEATHSCREEN_MENU_OPTIONS] = {
+    "Join Game",
+    "Exit Game"
+  };
+
+  return displayMenu(options, DEATHSCREEN_MENU_OPTIONS);
 }
 
