@@ -37,9 +37,9 @@ typedef struct {
 
 // Client methods
 void Client_init(Client *client);
-void Client_startServer();
+void Client_startServer(char *map_size, char *max_clients);
 void Client_joinGame(Client *client);
-void Client_handleChoice(Client *client, int choice);
+void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients);
 void Client_drawGame(const DataFromServer *serverData);
 void Client_parseData(const char *data, DataFromServer *serverData);
 void Client_freeDataFromServer(DataFromServer *serverData);

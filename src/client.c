@@ -8,15 +8,7 @@ void Client_init(Client *client) {
     client->server_data.foods = NULL;
 }
 
-void Client_startServer() {
-    char map_size[5];
-    char max_clients[3];
-
-    printf("Map size: ");
-    fgets(map_size, sizeof(map_size), stdin);
-    printf("Max clients: ");
-    fgets(max_clients, sizeof(max_clients), stdin);
-
+void Client_startServer(char *map_size, char *max_clients) {
     pid_t pid = fork();
     printf("PID: %d\n", pid);
     if (pid == 0) {
@@ -204,10 +196,10 @@ void Client_joinGame(Client *client) {
     endwin();
 }
 
-void Client_handleChoice(Client *client, int choice) {
+void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients) {
     switch (choice) {
         case 0:
-            Client_startServer();
+            Client_startServer(map_size, max_clients);
             Client_joinGame(client);
             break;
         case 1:
@@ -221,12 +213,15 @@ void Client_handleChoice(Client *client, int choice) {
 int main() {
     Client client;
     Client_init(&client);
+  
+    char map_size[5];
+    char max_clients[5];
 
-    int choice = mainMenu();
-    Client_handleChoice(&client, choice);
+    int choice = mainMenu(map_size, max_clients);
+    Client_handleChoice(&client, choice, map_size, max_clients);
 
     choice = deathScreen();
-    Client_handleChoice(&client, choice);
+    Client_handleChoice(&client, choice, NULL, NULL);
 
     return 0;
 }

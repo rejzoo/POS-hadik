@@ -3,6 +3,7 @@
 #define MENU_H
 
 #include <ncurses.h>
+#include <stdlib.h>
 
 typedef enum {
     NEW_GAME = 0,
@@ -13,8 +14,9 @@ typedef enum {
 
 void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options);
 int displayMenu(MenuOption options[], int n_options);
-int mainMenu();
+int mainMenu(char *mapSize, char *playerCount);
 int pauseMenu();
 int deathScreen();
+void newGameScreen(char *mapSize, char *playerCount);
 
 #endif

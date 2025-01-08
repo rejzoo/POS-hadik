@@ -65,9 +65,15 @@ int displayMenu(MenuOption options[], int n_options) {
     return choice;
 }
 
-int mainMenu() {
+int mainMenu(char *mapSize, char *playerCount) {
   MenuOption options[] = {NEW_GAME, JOIN_GAME, EXIT_GAME}; 
-  return displayMenu(options, 3);
+  int choice = displayMenu(options, 3);
+
+  if (choice == NEW_GAME) {
+    newGameScreen(mapSize, playerCount); 
+  }
+
+  return choice;
 }
 
 int pauseMenu() {
@@ -78,5 +84,23 @@ int pauseMenu() {
 int deathScreen() {
   MenuOption options[] = {JOIN_GAME, EXIT_GAME};
   return displayMenu(options, 2); 
+}
+
+void newGameScreen(char *mapSize, char *playerCount) {
+    int height = 10, width = 40, startY = 4, startX = 4;
+    WINDOW *inputWin = newwin(height, width, startY, startX);
+    box(inputWin, 0, 0);
+    mvwprintw(inputWin, 1, 2, "Enter Map Size:");
+    mvwprintw(inputWin, 3, 2, "Enter Player Count:");
+
+    echo();
+    wrefresh(inputWin);
+
+    mvwgetnstr(inputWin, 1, 18, mapSize, 4);
+    mvwgetnstr(inputWin, 3, 20, playerCount, 4);
+
+    noecho();
+
+    delwin(inputWin);
 }
 
