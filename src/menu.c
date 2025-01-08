@@ -1,23 +1,30 @@
 
 #include "menu.h"
 
-void printMenu(WINDOW *menuWin, int highlight, char *options[], int n_options) {
+const char *MenuOptionStrings[] = {
+    "New Game",
+    "Join Game",
+    "Exit Game",
+    "Continue Game"
+};
+
+void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options) {
     int x = 2, y = 2;
     box(menuWin, 0, 0); // Draw a border around the menu
     for (int i = 0; i < n_options; ++i) {
         if (i == highlight) {
             wattron(menuWin, A_REVERSE); // Highlight selected item
-            mvwprintw(menuWin, y, x, "%s", options[i]);
+            mvwprintw(menuWin, y, x, "%s", MenuOptionStrings[options[i]]);
             wattroff(menuWin, A_REVERSE);
         } else {
-            mvwprintw(menuWin, y, x, "%s", options[i]);
+            mvwprintw(menuWin, y, x, "%s", MenuOptionStrings[options[i]]);
         }
         y++;
     }
     wrefresh(menuWin);
 }
 
-int displayMenu(char *options[], int n_options) {
+int displayMenu(MenuOption options[], int n_options) {
     int highlight = 0;
     int choice = -1;
 
@@ -59,32 +66,17 @@ int displayMenu(char *options[], int n_options) {
 }
 
 int mainMenu() {
-  char *options[MAIN_MENU_OPTIONS] = {
-    "New Game",
-    "Join Game",
-    "Exit"
-  };
-
-  return displayMenu(options, MAIN_MENU_OPTIONS);
+  MenuOption options[] = {NEW_GAME, JOIN_GAME, EXIT_GAME}; 
+  return displayMenu(options, 3);
 }
 
 int pauseMenu() {
-  char *options[PAUSED_MENU_OPTIONS] = {
-    "Continue Game",
-    "New Game",
-    "Join Game",
-    "Exit"
-  };
-
-  return displayMenu(options, PAUSED_MENU_OPTIONS);
+  MenuOption options[] = {CONTINUE_GAME, NEW_GAME, JOIN_GAME, EXIT_GAME};
+  return displayMenu(options, 4); 
 }
 
 int deathScreen() {
-  char *options[DEATHSCREEN_MENU_OPTIONS] = {
-    "Join Game",
-    "Exit Game"
-  };
-
-  return displayMenu(options, DEATHSCREEN_MENU_OPTIONS);
+  MenuOption options[] = {JOIN_GAME, EXIT_GAME};
+  return displayMenu(options, 2); 
 }
 

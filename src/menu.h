@@ -4,12 +4,15 @@
 
 #include <ncurses.h>
 
-#define MAIN_MENU_OPTIONS 3
-#define PAUSED_MENU_OPTIONS 4
-#define DEATHSCREEN_MENU_OPTIONS 2
+typedef enum {
+    NEW_GAME = 0,
+    JOIN_GAME = 1,
+    EXIT_GAME = 2,
+    CONTINUE_GAME = 3
+} MenuOption;
 
-void printMenu(WINDOW *menuWin, int highlight, char *options[], int n_options);
-int displayMenu(char *options[], int n_options);
+void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options);
+int displayMenu(MenuOption options[], int n_options);
 int mainMenu();
 int pauseMenu();
 int deathScreen();
