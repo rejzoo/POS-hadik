@@ -52,7 +52,7 @@ int displayMenu(MenuOption options[], int n_options) {
                 if (highlight < n_options - 1) highlight++;
                 break;
             case '\n': // Enter
-                choice = highlight;
+                choice = options[highlight];
                 break;
         }
         if (choice != -1) break;

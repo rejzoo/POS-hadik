@@ -1,9 +1,17 @@
 #include "client.h"
 
-void startServer() {
+void Client_init(Client *client) {
+    client->client_fd = -1;
+    client->client_alive = 1;
+    client->server_data.snakes_heads = NULL;
+    client->server_data.snakes_bodies = NULL;
+    client->server_data.foods = NULL;
+}
+
+void Client_startServer() {
     char map_size[5];
     char max_clients[3];
-  
+
     printf("Map size: ");
     fgets(map_size, sizeof(map_size), stdin);
     printf("Max clients: ");
@@ -12,8 +20,8 @@ void startServer() {
     pid_t pid = fork();
     printf("PID: %d\n", pid);
     if (pid == 0) {
-        execl("./server", "./server", map_size, max_clients, NULL);
-        perror("Failed to start server"); // Wont get there if the server starts
+        execl("./SnakeGameServer", "./SnakeGameServer", map_size, max_clients, NULL);
+        perror("Failed to start server");
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
         printf("SERVER: Process started with PID %d\n", pid);
@@ -23,7 +31,6 @@ void startServer() {
     }
 }
 
-// Get insta input without printing
 char getKey() {
     struct termios oldt, newt;
     char ch;
@@ -41,11 +48,10 @@ char getKey() {
     return ch;
 }
 
-void drawGame(const DataFromServer *serverData) {
+void Client_drawGame(const DataFromServer *serverData) {
     clear();
     int map_size = serverData->map_size;
 
-    // i j reversed
     char grid[map_size + 2][map_size + 2];
     for (int i = 0; i < map_size + 2; i++) {
         for (int j = 0; j < map_size + 2; j++) {
@@ -75,13 +81,13 @@ void drawGame(const DataFromServer *serverData) {
         }
         printw("\n");
     }
-    
+
     printw("Number of players: %d", serverData->n_snakes);
 
     refresh();
 }
 
-void parseData(const char *data, DataFromServer *serverData) {
+void Client_parseData(const char *data, DataFromServer *serverData) {
     const char *ptr = data;
 
     sscanf(ptr, "%d", &serverData->map_size);
@@ -100,7 +106,7 @@ void parseData(const char *data, DataFromServer *serverData) {
     for (int i = 0; i < serverData->n_snakes; i++) {
         sscanf(ptr, "%d %d", &serverData->snakes_heads[i].x, &serverData->snakes_heads[i].y);
         ptr = strchr(ptr, ' ') + 1;
-        ptr = strchr(ptr, ' ') + 1; //Hack fix for bug
+        ptr = strchr(ptr, ' ') + 1;
     }
 
     for (int i = 0; i < serverData->n_bodies; i++) {
@@ -116,8 +122,8 @@ void parseData(const char *data, DataFromServer *serverData) {
     }
 }
 
-void freeDataFromServer(DataFromServer *serverData) {
-   if (serverData->snakes_heads) {
+void Client_freeDataFromServer(DataFromServer *serverData) {
+    if (serverData->snakes_heads) {
         free(serverData->snakes_heads);
         serverData->snakes_heads = NULL;
     }
@@ -128,44 +134,37 @@ void freeDataFromServer(DataFromServer *serverData) {
     if (serverData->foods) {
         free(serverData->foods);
         serverData->foods = NULL;
-    } 
+    }
 }
 
-void *receiveUpdates(void *arg) {
-    int client_fd = *(int *)arg;
+void *Client_receiveUpdates(void *arg) {
+    Client *client = (Client *)arg;
     char buffer[1024];
 
-    DataFromServer serverData = { 0 };
-    
     while (1) {
-        ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+        ssize_t bytes_received = recv(client->client_fd, buffer, sizeof(buffer) - 1, 0);
         if (bytes_received > 0) {
             buffer[bytes_received] = '\0';
-            freeDataFromServer(&serverData);
-            parseData(buffer, &serverData);
-            drawGame(&serverData);
+            Client_freeDataFromServer(&client->server_data);
+            Client_parseData(buffer, &client->server_data);
+            Client_drawGame(&client->server_data);
         } else if (bytes_received == 0) {
-            clear();
-            refresh();
-            int choice = deathScreen();
-            handleChoice(choice);
+            client->client_alive = 0;
             break;
         } else {
             perror("recv");
             break;
         }
-
-    } 
+    }
 
     return NULL;
 }
 
-void joinGame() {
-    sleep(2); // Wait a bit for server to start
-    int client_fd;
+void Client_joinGame(Client *client) {
+    sleep(2);
     struct sockaddr_in serv_addr;
 
-    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((client->client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\nCLIENT: Socket creation error \n");
         exit(EXIT_FAILURE);
     }
@@ -178,7 +177,7 @@ void joinGame() {
         exit(EXIT_FAILURE);
     }
 
-    if (connect(client_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (connect(client->client_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         printf("\nCLIENT: Connection failed. \n");
         exit(EXIT_FAILURE);
     }
@@ -189,42 +188,45 @@ void joinGame() {
     curs_set(0);
     keypad(stdscr, TRUE);
 
-    pthread_t update_thread;
-    pthread_create(&update_thread, NULL, receiveUpdates, &client_fd);
+    pthread_create(&client->update_thread, NULL, Client_receiveUpdates, client);
 
-    while (1) {
+    while (client->client_alive) {
         char key = getKey();
         if (key == 'w' || key == 'a' || key == 's' || key == 'd') {
-            send(client_fd, &key, 1, 0);
+            send(client->client_fd, &key, 1, 0);
         }
-
-        if (key == 'q') break; // Quit on 'q'
+        if (key == 'q') break;
     }
 
-    close(client_fd);
-    pthread_cancel(update_thread);
-    pthread_join(update_thread, NULL);
+    close(client->client_fd);
+    pthread_cancel(client->update_thread);
+    pthread_join(client->update_thread, NULL);
     endwin();
 }
 
-void handleChoice(int choice) {
-    switch(choice) {
-        case 0: // New game
-            startServer();
-            joinGame();
+void Client_handleChoice(Client *client, int choice) {
+    switch (choice) {
+        case 0:
+            Client_startServer();
+            Client_joinGame(client);
             break;
-        case 1: // Join game
-            joinGame();
+        case 1:
+            Client_joinGame(client);
             break;
-        case 2: // Exit
+        case 2:
             exit(EXIT_SUCCESS);
     }
 }
 
 int main() {
-    
+    Client client;
+    Client_init(&client);
+
     int choice = mainMenu();
-    handleChoice(choice); 
+    Client_handleChoice(&client, choice);
+
+    choice = deathScreen();
+    Client_handleChoice(&client, choice);
 
     return 0;
 }

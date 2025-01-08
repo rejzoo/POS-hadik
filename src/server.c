@@ -1,4 +1,5 @@
 #include "server.h"
+#include "snake.h"
 
 int createServerSocket() {
   int server_fd;
@@ -73,43 +74,33 @@ void *handleClient(void *arg) {
     if (bytes_read > 0) {
       pthread_mutex_lock(&game->mutex);
       for (int i = 0; i < game->n_clients; i++) {
-        if (game->snakes[i].socket == client_socket) {
-          if (!game->snakes[i].alive) {
+        if (snakeGetSocket(&game->snakes[i]) == client_socket) {
+          if (!snakeAlive(&game->snakes[i])) {
             is_alive = 0;
           }
 
           switch (key) {
           case 'w':
-            game->snakes[i].dx = 0;
-            game->snakes[i].dy = -1;
+            snakeSetDirection(&game->snakes[i], 0, -1);
             break;
           case 's':
-            game->snakes[i].dx = 0;
-            game->snakes[i].dy = 1;
+            snakeSetDirection(&game->snakes[i], 0, 1);
             break;
           case 'a':
-            game->snakes[i].dx = -1;
-            game->snakes[i].dy = 0;
+            snakeSetDirection(&game->snakes[i], -1, 0);
             break;
           case 'd':
-            game->snakes[i].dx = 1;
-            game->snakes[i].dy = 0;
+            snakeSetDirection(&game->snakes[i], 1, 0);
             break;
           }
           break;
         }
       }
       pthread_mutex_unlock(&game->mutex);
+    } else if (bytes_read == 0) {
+      printf("Client %d disconnected \n", client_socket);
+      break;
     }
-
-    pthread_mutex_lock(&game->mutex);
-    for (int i = 0; i < game->n_clients; i++) {
-      if (game->snakes[i].socket == client_socket && !game->snakes[i].alive) {
-        is_alive = 0;
-        break;
-      }
-    }
-    pthread_mutex_unlock(&game->mutex);
   }
 
   removeClient(game, client_socket);
@@ -117,22 +108,12 @@ void *handleClient(void *arg) {
   return NULL;
 }
 
-void initSnake(Snake *snake, int socket, int start_x, int start_y) {
-  snake->socket = socket;
-  snake->x = start_x;
-  snake->y = start_y;
-  snake->dx = 1;
-  snake->dy = 0;
-  snake->alive = 1;
-  snake->n_body = 0;
-}
-
 void addClient(GameState *game, int socket) {
   pthread_mutex_lock(&game->mutex);
 
   int index = game->n_clients++;
-  initSnake(&game->snakes[index], socket, generateCords(game),
-            generateCords(game));
+  snakeInit(&game->snakes[index], socket, generateCords(game),
+             generateCords(game));
   game->foods[index].x = generateCords(game);
   game->foods[index].y = generateCords(game);
 
@@ -143,8 +124,8 @@ void removeClient(GameState *game, int socket) {
   pthread_mutex_lock(&game->mutex);
 
   for (int i = 0; i < game->n_clients; i++) {
-    if (game->snakes[i].socket == socket) {
-      game->snakes[i].alive = 0;
+    if (snakeGetSocket(&game->snakes[i]) == socket) {
+      snakeSetAlive(&game->snakes[i], 0);
       printf("Client %d disconnected. \n", socket);
       break;
     }
@@ -155,14 +136,12 @@ void removeClient(GameState *game, int socket) {
 
 void checkFoodCollision(GameState *game) {
   for (int i = 0; i < game->n_clients; i++) {
-    if (game->snakes[i].alive) {
+    if (snakeAlive(&game->snakes[i])) {
       for (int j = 0; j < game->n_clients; j++) {
-        if (game->snakes[i].x == game->foods[j].x &&
-            game->snakes[i].y == game->foods[j].y) {
+        if (snakeGetX(&game->snakes[i]) == game->foods[j].x &&
+            snakeGetY(&game->snakes[i]) == game->foods[j].y) {
 
-          game->snakes[i].body[game->snakes[i].n_body++] =
-              (Position){game->snakes[i].x - game->snakes[i].dx,
-                         game->snakes[i].y - game->snakes[i].dy};
+          snakeGrow(&game->snakes[i]);
 
           game->foods[j].x = generateCords(game);
           game->foods[j].y = generateCords(game);
@@ -185,9 +164,9 @@ void broadcastGameState(GameState *game) {
   int total_bodies = 0;
 
   for (int i = 0; i < game->n_clients; i++) {
-    if (game->snakes[i].alive) {
+    if (snakeAlive(&game->snakes[i])) {
       alive_snakes++;
-      total_bodies += game->snakes[i].n_body;
+      total_bodies += snakeGetBodyLength(&game->snakes[i]);
     }
   }
 
@@ -198,16 +177,19 @@ void broadcastGameState(GameState *game) {
       snprintf(buffer + offset, sizeof(buffer) - offset, "%d ", total_bodies);
 
   for (int i = 0; i < game->n_clients; i++) {
-    if (game->snakes[i].alive) {
+    if (snakeAlive(&game->snakes[i])) {
+      Position snake_head = snakeGetHead(&game->snakes[i]);
       offset += snprintf(buffer + offset, sizeof(buffer) - offset, "%d %d ",
-                         game->snakes[i].x, game->snakes[i].y);
+                         snake_head.x,
+                         snake_head.y);
     }
   }
 
   for (int i = 0; i < game->n_clients; i++) {
-    for (int j = 0; j < game->snakes[i].n_body; j++) {
+    for (int j = 0; j < snakeGetBodyLength(&game->snakes[i]); j++) {
+      Position body_part = snakeGetBodyPart(&game->snakes[i], j);
       offset += snprintf(buffer + offset, sizeof(buffer) - offset, "%d %d ",
-                         game->snakes[i].body[j].x, game->snakes[i].body[j].y);
+                         body_part.x, body_part.y);
     }
   }
 
@@ -217,8 +199,8 @@ void broadcastGameState(GameState *game) {
   }
 
   for (int i = 0; i < game->n_clients; i++) {
-    if (game->snakes[i].alive) {
-      send(game->snakes[i].socket, buffer, strlen(buffer), 0);
+    if (snakeAlive(&game->snakes[i])) {
+      send(snakeGetSocket(&game->snakes[i]), buffer, strlen(buffer), 0);
     }
   }
 
@@ -232,22 +214,11 @@ void *gameLoop(void *arg) {
     pthread_mutex_lock(&game->mutex);
 
     for (int i = 0; i < game->n_clients; i++) {
-      if (game->snakes[i].alive) {
-        if (game->snakes[i].n_body > 0) {
-          for (int j = game->snakes[i].n_body - 1; j > 0; j--) {
-            game->snakes[i].body[j] = game->snakes[i].body[j - 1];
-          }
+      if (snakeAlive(&game->snakes[i])) {
+        snakeMove(&game->snakes[i]);
 
-          game->snakes[i].body[0] =
-              (Position){game->snakes[i].x, game->snakes[i].y};
-        }
-
-        game->snakes[i].x += game->snakes[i].dx;
-        game->snakes[i].y += game->snakes[i].dy;
-
-        if (game->snakes[i].x < 1 || game->snakes[i].x >= game->map_size + 1 ||
-            game->snakes[i].y < 1 || game->snakes[i].y >= game->map_size + 1) {
-          game->snakes[i].alive = 0;
+        if (outOfBounds(&game->snakes[i], game)) {
+          snakeSetAlive(&game->snakes[i], 0);
         }
       }
     }
@@ -257,33 +228,41 @@ void *gameLoop(void *arg) {
 
     broadcastGameState(game);
 
-    // sleep(2);
-    usleep(300000);
+    sleep(2);
   }
   return NULL;
 }
 
+int outOfBounds(Snake *snake, GameState *game) {
+  if (snakeGetX(snake) < 1 || snakeGetX(snake) >= game->map_size + 1 ||
+      snakeGetY(snake) < 1 || snakeGetY(snake) >= game->map_size + 1) {
+    return 1;
+  }
+
+  return 0;
+}
+
 int main(int argc, char *argv[]) {
   srand(time(NULL));
-  
+
   if (argc < 3) {
-      perror("Invalid number of arguments");
-      exit(EXIT_FAILURE);
+    perror("Invalid number of arguments");
+    exit(EXIT_FAILURE);
   }
 
   int map_size = atoi(argv[1]);
   int max_clients = atoi(argv[2]);
 
   if (map_size <= 0 || max_clients <= 0) {
-      perror("Map size and max clients must be > 0");
-      exit(EXIT_FAILURE);
+    perror("Map size and max clients must be > 0");
+    exit(EXIT_FAILURE);
   }
 
   GameState game = {
       .snakes = malloc(max_clients * sizeof(Snake)),
       .foods = malloc(max_clients * sizeof(Position)),
       .n_clients = 0,
-      .map_size = map_size, 
+      .map_size = map_size,
       .mutex = PTHREAD_MUTEX_INITIALIZER
   };
 
@@ -300,7 +279,7 @@ int main(int argc, char *argv[]) {
 
   while (1) {
     int *new_socket = acceptClientConnection(server_fd, &address);
-
+    printf("Clients: %d\n", game.n_clients);
     ThreadArgs *args = malloc(sizeof(ThreadArgs));
     args->game = &game;
     args->client_socket = *new_socket;
@@ -315,7 +294,8 @@ int main(int argc, char *argv[]) {
       pthread_detach(client);
     }
   }
-  
+
+  printf("Server closed\n");
   free(game.snakes);
   free(game.foods);
 
@@ -323,3 +303,4 @@ int main(int argc, char *argv[]) {
 
   return EXIT_SUCCESS;
 }
+

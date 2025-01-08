@@ -10,22 +10,7 @@
 #include <string.h>     // memset()
 #include <pthread.h>    // threads
 #include <fcntl.h>
-
-#define PORT 8090
-#define MAX_LENGTH 99
-
-typedef struct {
-  int x, y;
-} Position;
-
-typedef struct {
-  Position body[MAX_LENGTH];
-  int n_body;
-  int socket;
-  int x, y;
-  int dx, dy;
-  int alive;
-} Snake;
+#include "snake.h"
 
 typedef struct {
   Snake *snakes;
@@ -46,12 +31,12 @@ void bindAndListen(int server_fd, struct sockaddr_in *address);
 int *acceptClientConnection(int server_fd, struct sockaddr_in *address);
 void *handleClient(void *arg);
 
-void initSnake(Snake *snake, int socket, int start_x, int start_y);
 void addClient(GameState *game, int socket);
 void removeClient(GameState *game, int socket);
 void checkFoodCollision(GameState *game);
 void broadcastGameState(GameState *game);
 void *gameLoop(void *arg);
 int generateCords(GameState *game);
+int outOfBounds(Snake *snake, GameState *game);
 
 #endif
