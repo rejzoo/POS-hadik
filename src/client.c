@@ -1,13 +1,18 @@
 #include "client.h"
 
 void startServer() {
-    char mapSizeStr[5];
-    fgets(mapSizeStr, sizeof(mapSizeStr), stdin);
+    char map_size[5];
+    char max_clients[3];
+  
+    printf("Map size: ");
+    fgets(map_size, sizeof(map_size), stdin);
+    printf("Max clients: ");
+    fgets(max_clients, sizeof(max_clients), stdin);
 
     pid_t pid = fork();
     printf("PID: %d\n", pid);
     if (pid == 0) {
-        execl("./server", "./server", mapSizeStr, NULL);
+        execl("./server", "./server", map_size, max_clients, NULL);
         perror("Failed to start server"); // Wont get there if the server starts
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
@@ -70,6 +75,8 @@ void drawGame(const DataFromServer *serverData) {
         }
         printw("\n");
     }
+    
+    printw("Number of players: %d", serverData->n_snakes);
 
     refresh();
 }
@@ -85,6 +92,10 @@ void parseData(const char *data, DataFromServer *serverData) {
 
     sscanf(ptr, "%d", &serverData->n_bodies);
     ptr = strchr(ptr, ' ') + 1;
+
+    serverData->snakes_heads = malloc(serverData->n_snakes * sizeof(Position));
+    serverData->snakes_bodies = malloc(serverData->n_bodies * sizeof(Position));
+    serverData->foods = malloc(serverData->n_snakes * sizeof(Position));
 
     for (int i = 0; i < serverData->n_snakes; i++) {
         sscanf(ptr, "%d %d", &serverData->snakes_heads[i].x, &serverData->snakes_heads[i].y);
@@ -105,21 +116,34 @@ void parseData(const char *data, DataFromServer *serverData) {
     }
 }
 
+void freeDataFromServer(DataFromServer *serverData) {
+   if (serverData->snakes_heads) {
+        free(serverData->snakes_heads);
+        serverData->snakes_heads = NULL;
+    }
+    if (serverData->snakes_bodies) {
+        free(serverData->snakes_bodies);
+        serverData->snakes_bodies = NULL;
+    }
+    if (serverData->foods) {
+        free(serverData->foods);
+        serverData->foods = NULL;
+    } 
+}
+
 void *receiveUpdates(void *arg) {
     int client_fd = *(int *)arg;
     char buffer[1024];
 
-    DataFromServer serverData;
+    DataFromServer serverData = { 0 };
     
     while (1) {
         ssize_t bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
         if (bytes_received > 0) {
             buffer[bytes_received] = '\0';
-            
+            freeDataFromServer(&serverData);
             parseData(buffer, &serverData);
-
             drawGame(&serverData);
-            printf("DRAW\n");
         } else if (bytes_received == 0) {
             clear();
             refresh();
@@ -201,22 +225,6 @@ int main() {
     
     int choice = mainMenu();
     handleChoice(choice); 
-    /*
-    switch (option) {
-        case 0: // New Game
-            printf("Starting a new game...\n");
-            startServer();
-            joinGame();
-            break;
-        case 1: // Join Game
-            printf("Joining an existing game...\n");
-            joinGame();
-            break;
-        case 2: // Exit
-            printf("Exiting...\n");
-            exit(EXIT_SUCCESS);
-            break;
-    }*/
 
     return 0;
 }

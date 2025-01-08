@@ -12,7 +12,6 @@
 #include <fcntl.h>
 
 #define PORT 8090
-#define MAX_CLIENTS 4
 #define MAX_LENGTH 99
 
 typedef struct {
@@ -29,8 +28,8 @@ typedef struct {
 } Snake;
 
 typedef struct {
-  Snake snakes[MAX_CLIENTS];
-  Position food[MAX_CLIENTS];
+  Snake *snakes;
+  Position *foods;
   int n_clients;
   int map_size;
   pthread_mutex_t mutex;

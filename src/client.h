@@ -14,7 +14,6 @@
 
 // TODO make util class ?
 #define PORT 8090
-#define MAX_CLIENTS 4
 #define MAX_BODY_LENGTH 99
 
 typedef struct {
@@ -25,15 +24,16 @@ typedef struct {
   int map_size;
   int n_snakes;
   int n_bodies;
-  Position snakes_heads[MAX_CLIENTS];
-  Position snakes_bodies[MAX_BODY_LENGTH * MAX_CLIENTS];
-  Position foods[MAX_CLIENTS];
+  Position *snakes_heads;
+  Position *snakes_bodies;
+  Position *foods;
 } DataFromServer;
 
 void startServer();
 char getKey();
 void drawGame(const DataFromServer *serverData);
 void parseData(const char *data, DataFromServer *serverData);
+void freeDataFromServer(DataFromServer *serverData);
 void *receiveUpdates(void *arg);
 void joinGame();
 void handleChoice(int choice);

@@ -133,8 +133,8 @@ void addClient(GameState *game, int socket) {
   int index = game->n_clients++;
   initSnake(&game->snakes[index], socket, generateCords(game),
             generateCords(game));
-  game->food[index].x = generateCords(game);
-  game->food[index].y = generateCords(game);
+  game->foods[index].x = generateCords(game);
+  game->foods[index].y = generateCords(game);
 
   pthread_mutex_unlock(&game->mutex);
 }
@@ -157,15 +157,15 @@ void checkFoodCollision(GameState *game) {
   for (int i = 0; i < game->n_clients; i++) {
     if (game->snakes[i].alive) {
       for (int j = 0; j < game->n_clients; j++) {
-        if (game->snakes[i].x == game->food[j].x &&
-            game->snakes[i].y == game->food[j].y) {
+        if (game->snakes[i].x == game->foods[j].x &&
+            game->snakes[i].y == game->foods[j].y) {
 
           game->snakes[i].body[game->snakes[i].n_body++] =
               (Position){game->snakes[i].x - game->snakes[i].dx,
                          game->snakes[i].y - game->snakes[i].dy};
 
-          game->food[j].x = generateCords(game);
-          game->food[j].y = generateCords(game);
+          game->foods[j].x = generateCords(game);
+          game->foods[j].y = generateCords(game);
         }
       }
     }
@@ -213,12 +213,11 @@ void broadcastGameState(GameState *game) {
 
   for (int i = 0; i < game->n_clients; i++) {
     offset += snprintf(buffer + offset, sizeof(buffer) - offset, "%d %d ",
-                       game->food[i].x, game->food[i].y);
+                       game->foods[i].x, game->foods[i].y);
   }
 
   for (int i = 0; i < game->n_clients; i++) {
     if (game->snakes[i].alive) {
-      printf("%s\n", buffer);
       send(game->snakes[i].socket, buffer, strlen(buffer), 0);
     }
   }
@@ -266,10 +265,27 @@ void *gameLoop(void *arg) {
 
 int main(int argc, char *argv[]) {
   srand(time(NULL));
+  
+  if (argc < 3) {
+      perror("Invalid number of arguments");
+      exit(EXIT_FAILURE);
+  }
+
   int map_size = atoi(argv[1]);
+  int max_clients = atoi(argv[2]);
+
+  if (map_size <= 0 || max_clients <= 0) {
+      perror("Map size and max clients must be > 0");
+      exit(EXIT_FAILURE);
+  }
 
   GameState game = {
-      .n_clients = 0, .map_size = map_size, .mutex = PTHREAD_MUTEX_INITIALIZER};
+      .snakes = malloc(max_clients * sizeof(Snake)),
+      .foods = malloc(max_clients * sizeof(Position)),
+      .n_clients = 0,
+      .map_size = map_size, 
+      .mutex = PTHREAD_MUTEX_INITIALIZER
+  };
 
   int server_fd;
   struct sockaddr_in address;
@@ -299,6 +315,9 @@ int main(int argc, char *argv[]) {
       pthread_detach(client);
     }
   }
+  
+  free(game.snakes);
+  free(game.foods);
 
   close(server_fd);
 
