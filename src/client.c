@@ -212,17 +212,11 @@ void Client_handleChoice(Client *client, int choice, char *map_size, char *max_c
             Client_joinGame(client);
             break;
         case 1:
-            if (client->client_fd != -1) {
-                close(client->client_fd);
-                client->client_fd = -1;
-            }
+            close(client->client_fd);
             Client_joinGame(client);
             break;
         case 2:
-            if (client->client_fd != -1) {
-                close(client->client_fd);
-                client->client_fd = -1;
-            }
+            close(client->client_fd);
             exit(EXIT_SUCCESS);
     }
 }
@@ -235,12 +229,15 @@ int main() {
     Client_init(&client);
     int choice = mainMenu(map_size, max_clients);
     Client_handleChoice(&client, choice, map_size, max_clients);
-  
-    clear();
-    refresh();
+ 
+    while (1) {
+      Client_init(&client);
+      clear();
+      refresh();
 
-    choice = deathScreen();
-    Client_handleChoice(&client, choice, NULL, NULL);
+      choice = deathScreen();
+      Client_handleChoice(&client, choice, NULL, NULL);
+    }
     return 0;
 }
 

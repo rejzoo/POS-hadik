@@ -276,7 +276,6 @@ void *gameLoop(void *arg) {
     pthread_mutex_unlock(&game->mutex);
 
     broadcastGameState(game);
-    printf("CLIENTS: %d | GAME LOOP\n", game->n_clients);
     sleep(2);
   }
   return NULL;
