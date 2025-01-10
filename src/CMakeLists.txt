@@ -1,23 +1,23 @@
 cmake_minimum_required(VERSION 3.10)
 project(SnakeGame)
 
-# Add common sources
-set(COMMON_SOURCES
+set(COMMON_SOURCES_SERVER
     snake.c
+)
+
+set(COMMON_SOURCES_CLIENT
     menu.c
 )
 
-# Add the server executable
 add_executable(SnakeGameServer
     server.c
-    ${COMMON_SOURCES}
+    ${COMMON_SOURCES_SERVER}
 )
 target_include_directories(SnakeGameServer PRIVATE ${CMAKE_SOURCE_DIR})
 
-# Add the client executable
 add_executable(SnakeGameClient
     client.c
-    ${COMMON_SOURCES}
+    ${COMMON_SOURCES_CLIENT}
 )
 target_include_directories(SnakeGameClient PRIVATE ${CMAKE_SOURCE_DIR})
 

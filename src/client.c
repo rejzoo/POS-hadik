@@ -153,6 +153,7 @@ void *Client_receiveUpdates(void *arg) {
 }
 
 void Client_joinGame(Client *client) {
+    printf("Joining server\n");
     sleep(2);
     struct sockaddr_in serv_addr;
 
@@ -194,6 +195,11 @@ void Client_joinGame(Client *client) {
     pthread_cancel(client->update_thread);
     pthread_join(client->update_thread, NULL);
     endwin();
+  
+    if (client->client_alive) {
+      int choice = deathScreen();
+      Client_handleChoice(client, choice, NULL, NULL);
+    }
 }
 
 void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients) {
@@ -203,9 +209,17 @@ void Client_handleChoice(Client *client, int choice, char *map_size, char *max_c
             Client_joinGame(client);
             break;
         case 1:
+            if (client->client_fd != -1) {
+                close(client->client_fd);
+                client->client_fd = -1;
+            }
             Client_joinGame(client);
             break;
         case 2:
+            if (client->client_fd != -1) {
+                close(client->client_fd);
+                client->client_fd = -1;
+            }
             exit(EXIT_SUCCESS);
     }
 }
@@ -219,9 +233,6 @@ int main() {
 
     int choice = mainMenu(map_size, max_clients);
     Client_handleChoice(&client, choice, map_size, max_clients);
-
-    choice = deathScreen();
-    Client_handleChoice(&client, choice, NULL, NULL);
 
     return 0;
 }

@@ -17,6 +17,7 @@ typedef struct {
   Position *foods;
   int n_clients;
   int map_size;
+  int max_clients;
   pthread_mutex_t mutex;
 } GameState;
 
@@ -34,6 +35,7 @@ void *handleClient(void *arg);
 void addClient(GameState *game, int socket);
 void removeClient(GameState *game, int socket);
 void checkFoodCollision(GameState *game);
+void checkSnakeCollision(GameState *game);
 void broadcastGameState(GameState *game);
 void *gameLoop(void *arg);
 int generateCords(GameState *game);
