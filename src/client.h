@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <termios.h>
 #include <pthread.h>
+#include <fcntl.h>
 #include "menu.h"
 
 // Constants

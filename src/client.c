@@ -24,20 +24,29 @@ void Client_startServer(char *map_size, char *max_clients) {
 }
 
 char getKey() {
-    struct termios oldt, newt;
-    char ch;
+  struct termios oldt, newt;
+    char ch = 0;
 
+    // Set terminal to non-canonical mode
     tcgetattr(STDIN_FILENO, &oldt);
     newt = oldt;
-
     newt.c_lflag &= ~(ICANON | ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
-    ch = getchar();
+    // Set stdin to non-blocking mode
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
 
+    // Attempt to read input
+    if (read(STDIN_FILENO, &ch, 1) < 0) {
+        ch = 0; // No input available
+    }
+
+    // Restore terminal settings
+    fcntl(STDIN_FILENO, F_SETFL, flags); // Restore blocking mode
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 
-    return ch;
+    return ch;    
 }
 
 void Client_drawGame(const DataFromServer *serverData) {
@@ -133,7 +142,7 @@ void *Client_receiveUpdates(void *arg) {
     Client *client = (Client *)arg;
     char buffer[1024];
 
-    while (1) {
+    while (client->client_alive) {
         ssize_t bytes_received = recv(client->client_fd, buffer, sizeof(buffer) - 1, 0);
         if (bytes_received > 0) {
             buffer[bytes_received] = '\0';
@@ -193,13 +202,7 @@ void Client_joinGame(Client *client) {
 
     close(client->client_fd);
     pthread_cancel(client->update_thread);
-    pthread_join(client->update_thread, NULL);
     endwin();
-  
-    if (client->client_alive) {
-      int choice = deathScreen();
-      Client_handleChoice(client, choice, NULL, NULL);
-    }
 }
 
 void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients) {
@@ -226,14 +229,18 @@ void Client_handleChoice(Client *client, int choice, char *map_size, char *max_c
 
 int main() {
     Client client;
-    Client_init(&client);
-  
     char map_size[5];
     char max_clients[5];
-
+    
+    Client_init(&client);
     int choice = mainMenu(map_size, max_clients);
     Client_handleChoice(&client, choice, map_size, max_clients);
+  
+    clear();
+    refresh();
 
+    choice = deathScreen();
+    Client_handleChoice(&client, choice, NULL, NULL);
     return 0;
 }
 
