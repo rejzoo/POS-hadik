@@ -8,6 +8,11 @@ void snakeInit(Snake *snake, int socket, int start_x, int start_y) {
     snake->dy = 0;
     snake->alive = 1;
     snake->n_body = 0;
+    
+    for (int i = 0; i < MAX_LENGTH_SNAKE; i++) {
+      snake->body[i].x = -1;
+      snake->body[i].y = -1;
+    }
 }
 
 void destroySnake(Snake *snake) {
@@ -17,7 +22,7 @@ void destroySnake(Snake *snake) {
 }
 
 void snakeMove(Snake *snake) {
-    if (!snake->alive) return;
+    if (!snake || !snake->alive) return;
 
     if (snake->n_body > 0) {
         for (int i = snake->n_body - 1; i > 0; i--) {

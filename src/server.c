@@ -37,17 +37,20 @@ void bindAndListen(int server_fd, struct sockaddr_in *address) {
   }
 }
 
-int *acceptClientConnection(int server_fd, struct sockaddr_in *address) {
-  int *new_socket = malloc(sizeof(int));
+int acceptClientConnection(int server_fd, struct sockaddr_in *address) {
   socklen_t addrlen = sizeof(*address);
 
-  if ((*new_socket = accept(server_fd, (struct sockaddr *)address, &addrlen)) <
-      0) {
-    perror("accept failed");
-    free(new_socket);
-    exit(EXIT_FAILURE);
-  }
-  return new_socket;
+  int new_socket = accept(server_fd, (struct sockaddr *)address, &addrlen);
+    if (new_socket < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            // No incoming connections; return NULL
+            return -1;
+        } else {
+            perror("accept failed");
+            exit(EXIT_FAILURE);
+        }
+    }
+    return new_socket; 
 }
 
 int generateCords(GameState *game) { return (rand() % game->map_size) + 1; }
@@ -56,7 +59,7 @@ void *handleClient(void *arg) {
   ThreadArgs *args = (ThreadArgs *)arg;
   GameState *game = args->game;
   int client_socket = args->client_socket;
-
+  
   free(args);
   char key;
 
@@ -79,7 +82,7 @@ void *handleClient(void *arg) {
     close(client_socket);
     return NULL;
   }
-  
+
   // Enable nonblocking
   int flags = fcntl(client_socket, F_GETFL, 0);
   fcntl(client_socket, F_SETFL, flags | O_NONBLOCK);
@@ -299,6 +302,7 @@ void *gameLoop(void *arg) {
 }
 
 int outOfBounds(Snake *snake, GameState *game) {
+  if (!snake) return 0;
   if (snakeGetX(snake) < 1 || snakeGetX(snake) >= game->map_size + 1 ||
       snakeGetY(snake) < 1 || snakeGetY(snake) >= game->map_size + 1) {
     return 1;
@@ -332,6 +336,17 @@ int main(int argc, char *argv[]) {
 
   for (int i = 0; i < max_clients; i++) {
     game.snakes[i].socket = -1;
+    game.snakes[i].alive = 0;
+    game.snakes[i].n_body = 0;
+    game.snakes[i].x = 0;
+    game.snakes[i].y = 0;
+    game.snakes[i].dx = 0;
+    game.snakes[i].dy = 0;
+
+    for (int j = 0; j < MAX_LENGTH_SNAKE; j++) {
+      game.snakes[i].body[j].x = 0;
+      game.snakes[i].body[j].y = 0;
+    }
   }
 
   int server_fd;
@@ -345,29 +360,43 @@ int main(int argc, char *argv[]) {
   pthread_t game_td;
   pthread_create(&game_td, NULL, gameLoop, &game);
 
+  int flags = fcntl(server_fd, F_GETFL, 0);
+  fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
+  time_t last_connect = time(NULL);
+
   while (1) {
-    int *new_socket = acceptClientConnection(server_fd, &address);
-    printf("Clients: %d\n", game.n_clients);
-    ThreadArgs *args = malloc(sizeof(ThreadArgs));
-    args->game = &game;
-    args->client_socket = *new_socket;
-
-    pthread_t client;
-
-    if (pthread_create(&client, NULL, handleClient, args) != 0) {
-      perror("Failed pthread_create");
-      close(*new_socket);
-      free(new_socket);
-    } else {
-      pthread_detach(client);
+    if (game.n_clients == 0 && difftime(time(NULL), last_connect) >= 10) {
+      printf("10 seconds empty, shutting down server.\n");
+      break;
     }
+
+    int new_socket = acceptClientConnection(server_fd, &address);
+    if (new_socket >= 0) {
+      printf("Clients: %d\n", game.n_clients);
+      ThreadArgs *args = malloc(sizeof(ThreadArgs));
+      args->game = &game;
+      args->client_socket = new_socket;
+
+      pthread_t client;
+
+      if (pthread_create(&client, NULL, handleClient, args) != 0) {
+        perror("Failed pthread_create");
+        close(new_socket);
+      } else {
+        pthread_detach(client);
+      }
+    }
+
+    usleep(100000);
   }
 
   printf("Server closed\n");
   free(game.snakes);
   free(game.foods);
-
   close(server_fd);
+
+  pthread_cancel(game_td);
+  pthread_join(game_td, NULL);
 
   return EXIT_SUCCESS;
 }

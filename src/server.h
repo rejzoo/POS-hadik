@@ -30,7 +30,7 @@ typedef struct {
 int createServerSocket();
 void configureServerAddress(struct sockaddr_in *address);
 void bindAndListen(int server_fd, struct sockaddr_in *address);
-int *acceptClientConnection(int server_fd, struct sockaddr_in *address);
+int acceptClientConnection(int server_fd, struct sockaddr_in *address);
 void *handleClient(void *arg);
 
 void addClient(GameState *game, int socket);
