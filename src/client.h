@@ -12,7 +12,6 @@
 #include <fcntl.h>
 #include "menu.h"
 
-// Constants
 #define PORT 8090
 #define MAX_BODY_LENGTH 99
 
@@ -36,7 +35,6 @@ typedef struct {
     DataFromServer server_data;
 } Client;
 
-// Client methods
 void Client_init(Client *client);
 void Client_startServer(char *map_size, char *max_clients);
 void Client_joinGame(Client *client);

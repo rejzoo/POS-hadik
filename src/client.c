@@ -23,32 +23,6 @@ void Client_startServer(char *map_size, char *max_clients) {
     }
 }
 
-char getKey() {
-  struct termios oldt, newt;
-    char ch = 0;
-
-    // Set terminal to non-canonical mode
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
-    // Set stdin to non-blocking mode
-    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-
-    // Attempt to read input
-    if (read(STDIN_FILENO, &ch, 1) < 0) {
-        ch = 0; // No input available
-    }
-
-    // Restore terminal settings
-    fcntl(STDIN_FILENO, F_SETFL, flags); // Restore blocking mode
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-
-    return ch;    
-}
-
 void Client_drawGame(const DataFromServer *serverData) {
     clear();
     int map_size = serverData->map_size;
@@ -157,7 +131,8 @@ void *Client_receiveUpdates(void *arg) {
             break;
         }
     }
-
+    
+    Client_freeDataFromServer(&client->server_data);
     return NULL;
 }
 
@@ -189,18 +164,23 @@ void Client_joinGame(Client *client) {
     noecho();
     curs_set(0);
     keypad(stdscr, TRUE);
+    nodelay(stdscr, TRUE);
 
     pthread_create(&client->update_thread, NULL, Client_receiveUpdates, client);
 
     while (client->client_alive) {
-        char key = getKey();
+        char key = getch();
         if (key == 'w' || key == 'a' || key == 's' || key == 'd') {
             send(client->client_fd, &key, 1, 0);
         }
         if (key == 'q') break;
+
+        usleep(100000);
     }
 
-    close(client->client_fd);
+    if (client->client_fd >= 0) {
+      close(client->client_fd);
+    }
     pthread_cancel(client->update_thread);
     endwin();
 }

@@ -10,6 +10,7 @@
 #include <string.h>     // memset()
 #include <pthread.h>    // threads
 #include <fcntl.h>
+#include <errno.h>
 #include "snake.h"
 
 typedef struct {
