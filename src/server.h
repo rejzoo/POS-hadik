@@ -19,6 +19,7 @@ typedef struct {
   int n_clients;
   int map_size;
   int max_clients;
+  int *time;
   pthread_mutex_t mutex;
 } GameState;
 

@@ -11,11 +11,11 @@ void Client_init(Client *client) {
     client->server_data.foods = NULL;
 }
 
-void Client_startServer(char *map_size, char *max_clients) {
+void Client_startServer(char *map_size, char *max_clients, char *game_mode, char *game_time) {
     pid_t pid = fork();
     printf("PID: %d\n", pid);
     if (pid == 0) {
-        execl("./SnakeGameServer", "./SnakeGameServer", map_size, max_clients, NULL);
+        execl("./SnakeGameServer", "./SnakeGameServer", map_size, max_clients, game_mode, game_time, NULL);
         perror("Failed to start server");
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
@@ -63,9 +63,11 @@ void Client_drawGame(const DataFromServer *serverData, Client *client) {
 
     printw("Number of players: %d\n", serverData->n_snakes);
     printw("PAUSED: %d\n", client->client_paused);
-    //printw("Score: %d", client->client_score);
+    printw("TIME: %d\n", serverData->time);
+    printw("Score: %d", client->client_score);
 
     refresh();
+    usleep(50000);
 }
 
 void Client_parseData(const char *data1, const char *data2, DataFromServer *serverData, Client *client) {
@@ -73,6 +75,9 @@ void Client_parseData(const char *data1, const char *data2, DataFromServer *serv
     const char *ptr2 = data2;
 
     sscanf(ptr, "%d", &serverData->map_size);
+    ptr = strchr(ptr, ' ') + 1;
+
+    sscanf(ptr, "%d", &serverData->time);
     ptr = strchr(ptr, ' ') + 1;
 
     sscanf(ptr, "%d", &serverData->n_snakes);
@@ -163,6 +168,7 @@ void *Client_input(void *arg) {
 
       while (client->client_alive) {
         if (client->client_paused) {
+            usleep(100000);
             continue;
         }
 
@@ -216,11 +222,11 @@ void Client_joinGame(Client *client) {
     pthread_detach(client->input_thread);
 }
 
-void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients) {
+void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients, char *game_mode, char *game_time) {
     switch (choice) {
         case 0:
             Client_closeIfOpen(client);
-            Client_startServer(map_size, max_clients);
+            Client_startServer(map_size, max_clients, game_mode, game_time);
             Client_joinGame(client);
             break;
         case 1:
@@ -262,28 +268,31 @@ void Client_handlePause(Client *client) {
     char map_size[5];
     char max_clients[5];
     int choice = pauseMenu(map_size, max_clients);
-    Client_handleChoice(client, choice, map_size, max_clients);
+    Client_handleChoice(client, choice, map_size, max_clients, NULL, NULL);
 }
 
 int main() {
     Client client;
     char map_size[5];
     char max_clients[5];
+    char game_mode[5];
+    char game_time[9999];
 
     Client_init(&client);
-    int choice = mainMenu(map_size, max_clients);
-    Client_handleChoice(&client, choice, map_size, max_clients);
+    int choice = mainMenu(map_size, max_clients, game_mode, game_time);
+    Client_handleChoice(&client, choice, map_size, max_clients, game_mode, game_time);
 
     while (!client.end_game) {
       if (!client.client_alive) {
         clear();
         refresh();
         choice = deathScreen(client.client_score);
-        Client_handleChoice(&client, choice, NULL, NULL);
+        Client_handleChoice(&client, choice, NULL, NULL, NULL, NULL);
       } else if (client.client_paused) {
         choice = pauseMenu(map_size, max_clients);
-        Client_handleChoice(&client, choice, map_size, max_clients);
+        Client_handleChoice(&client, choice, map_size, max_clients, game_mode, game_time);
       }
+      usleep(100000);
     }
 
     if (client.client_fd != -1) {

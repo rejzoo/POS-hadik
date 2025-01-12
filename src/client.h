@@ -23,6 +23,7 @@ typedef struct {
     int map_size;
     int n_snakes;
     int n_bodies;
+    int time;
     Position *snakes_heads;
     Position *snakes_bodies;
     Position *foods;
@@ -40,9 +41,9 @@ typedef struct {
 } Client;
 
 void Client_init(Client *client);
-void Client_startServer(char *map_size, char *max_clients);
+void Client_startServer(char *map_size, char *max_clients, char *game_mode, char *game_time); 
 void Client_joinGame(Client *client);
-void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients);
+void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients, char *game_mode, char *game_time);
 void Client_drawGame(const DataFromServer *serverData, Client *client);
 void Client_parseData(const char *data1, const char *data2, DataFromServer *serverData, Client *client);
 void Client_freeDataFromServer(DataFromServer *serverData);

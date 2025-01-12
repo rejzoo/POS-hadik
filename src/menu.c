@@ -1,11 +1,14 @@
 
 #include "menu.h"
+#include <unistd.h>
 
 const char *MenuOptionStrings[] = {
     "New Game",
     "Join Game",
     "Exit Game",
-    "Continue Game"
+    "Continue Game",
+    "Standard Game",
+    "Timed Game"
 };
 
 void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options, char *text) {
@@ -64,17 +67,26 @@ int displayMenu(MenuOption options[], int n_options, char *text) {
     clear();
     refresh();
     endwin();
+    delwin(menuWin);
 
     return choice;
 }
 
-int mainMenu(char *mapSize, char *playerCount) {
-  MenuOption options[] = {NEW_GAME, JOIN_GAME, EXIT_GAME}; 
-  char *text = "Main menu";
-  int choice = displayMenu(options, 3, text);
-
+int mainMenu(char *mapSize, char *playerCount, char *gameMode, char *gameTime) {
+  MenuOption optionsMain[] = {NEW_GAME, JOIN_GAME, EXIT_GAME}; 
+  char *textMain = "Main menu";
+  int choice = displayMenu(optionsMain, 3, textMain);
+  
   if (choice == NEW_GAME) {
-    newGameScreen(mapSize, playerCount); 
+    newGameScreen(mapSize, playerCount);
+    MenuOption optionsGameMode[] = {STANDARD_GAME, TIMED_GAME};
+    char *textGameMode = "Select gamemode";
+    int choiceGameMode = displayMenu(optionsGameMode, 2, textGameMode);
+    snprintf(gameMode, sizeof(gameMode), "%d", choiceGameMode);
+   
+    if (choiceGameMode == TIMED_GAME) {
+      newTimedGameScreen(gameTime);
+    }
   }
 
   return choice;
@@ -111,6 +123,22 @@ void newGameScreen(char *mapSize, char *playerCount) {
 
     mvwgetnstr(inputWin, 1, 18, mapSize, 4);
     mvwgetnstr(inputWin, 3, 20, playerCount, 4);
+
+    noecho();
+
+    delwin(inputWin);
+}
+
+void newTimedGameScreen(char *gameTime) {
+    int height = 10, width = 40, startY = 4, startX = 4;
+    WINDOW *inputWin = newwin(height, width, startY, startX);
+    box(inputWin, 0, 0);
+    mvwprintw(inputWin, 1, 2, "Enter time:");
+
+    echo();
+    wrefresh(inputWin);
+
+    mvwgetnstr(inputWin, 1, 15, gameTime, 5);
 
     noecho();
 
