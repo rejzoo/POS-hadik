@@ -1,5 +1,16 @@
 #include "client.h"
 
+struct Client {
+    int client_fd;
+    int client_alive;
+    int client_score;
+    int client_paused;
+    int end_game;
+    pthread_t update_thread;
+    pthread_t input_thread;
+    DataFromServer server_data;
+};
+
 void Client_init(Client *client) {
     client->client_fd = -1;
     client->client_alive = 1;

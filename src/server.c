@@ -1,5 +1,6 @@
 #include "server.h"
-#include "snake.h"
+
+
 
 int createServerSocket() {
   int server_fd;

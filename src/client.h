@@ -29,16 +29,7 @@ typedef struct {
     Position *foods;
 } DataFromServer;
 
-typedef struct {
-    int client_fd;
-    int client_alive;
-    int client_score;
-    int client_paused;
-    int end_game;
-    pthread_t update_thread;
-    pthread_t input_thread;
-    DataFromServer server_data;
-} Client;
+typedef struct Client Client;
 
 void Client_init(Client *client);
 void Client_startServer(char *map_size, char *max_clients, char *game_mode, char *game_time); 
