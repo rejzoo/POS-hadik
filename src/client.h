@@ -31,6 +31,7 @@ typedef struct {
 typedef struct {
     int client_fd;
     int client_alive;
+    int client_score;
     pthread_t update_thread;
     DataFromServer server_data;
 } Client;
@@ -39,8 +40,8 @@ void Client_init(Client *client);
 void Client_startServer(char *map_size, char *max_clients);
 void Client_joinGame(Client *client);
 void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients);
-void Client_drawGame(const DataFromServer *serverData);
-void Client_parseData(const char *data, DataFromServer *serverData);
+void Client_drawGame(const DataFromServer *serverData, Client *client);
+void Client_parseData(const char *data1, const char *data2, DataFromServer *serverData, Client *client);
 void Client_freeDataFromServer(DataFromServer *serverData);
 void *Client_receiveUpdates(void *arg);
 

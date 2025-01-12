@@ -12,6 +12,7 @@ typedef struct {
   int x, y;
   int dx, dy;
   int alive;
+  int score;
 } Snake;
 
 void snakeInit(Snake *snake, int socket, int start_x, int start_y);

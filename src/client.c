@@ -3,6 +3,7 @@
 void Client_init(Client *client) {
     client->client_fd = -1;
     client->client_alive = 1;
+    client->client_score = 0;
     client->server_data.snakes_heads = NULL;
     client->server_data.snakes_bodies = NULL;
     client->server_data.foods = NULL;
@@ -23,7 +24,7 @@ void Client_startServer(char *map_size, char *max_clients) {
     }
 }
 
-void Client_drawGame(const DataFromServer *serverData) {
+void Client_drawGame(const DataFromServer *serverData, Client *client) {
     clear();
     int map_size = serverData->map_size;
 
@@ -57,13 +58,15 @@ void Client_drawGame(const DataFromServer *serverData) {
         printw("\n");
     }
 
-    printw("Number of players: %d", serverData->n_snakes);
+    printw("Number of players: %d\n", serverData->n_snakes);
+    //printw("Score: %d", client->client_score);
 
     refresh();
 }
 
-void Client_parseData(const char *data, DataFromServer *serverData) {
-    const char *ptr = data;
+void Client_parseData(const char *data1, const char *data2, DataFromServer *serverData, Client *client) {
+    const char *ptr = data1;
+    const char *ptr2 = data2;
 
     sscanf(ptr, "%d", &serverData->map_size);
     ptr = strchr(ptr, ' ') + 1;
@@ -95,6 +98,8 @@ void Client_parseData(const char *data, DataFromServer *serverData) {
         ptr = strchr(ptr, ' ') + 1;
         ptr = strchr(ptr, ' ') + 1;
     }
+
+    //sscanf(ptr2, "%d", &client->client_score);
 }
 
 void Client_freeDataFromServer(DataFromServer *serverData) {
@@ -115,21 +120,34 @@ void Client_freeDataFromServer(DataFromServer *serverData) {
 void *Client_receiveUpdates(void *arg) {
     Client *client = (Client *)arg;
     char buffer[1024];
+    char clientBuffer[256];
 
     while (client->client_alive) {
-        ssize_t bytes_received = recv(client->client_fd, buffer, sizeof(buffer) - 1, 0);
-        if (bytes_received > 0) {
-            buffer[bytes_received] = '\0';
-            Client_freeDataFromServer(&client->server_data);
-            Client_parseData(buffer, &client->server_data);
-            Client_drawGame(&client->server_data);
-        } else if (bytes_received == 0) {
+        ssize_t bytes_received1 = recv(client->client_fd, buffer, sizeof(buffer) - 1, 0);
+        if (bytes_received1 > 0) {
+            buffer[bytes_received1] = '\0';
+        } else if (bytes_received1 == 0) {
             client->client_alive = 0;
             break;
         } else {
             perror("recv");
             break;
         }
+
+        //ssize_t bytes_received2 = recv(client->client_fd, clientBuffer, sizeof(clientBuffer) - 1, 0);
+        //if (bytes_received2 > 0) {
+        //    clientBuffer[bytes_received2] = '\0';
+        //} else if (bytes_received2 == 0) {
+        //   client->client_alive = 0;
+        //    break;
+        //} else {
+        //   perror("recv");
+        //    break;
+        //}
+
+      Client_freeDataFromServer(&client->server_data);
+      Client_parseData(buffer, clientBuffer, &client->server_data, client);
+      Client_drawGame(&client->server_data, client);
     }
     
     Client_freeDataFromServer(&client->server_data);
@@ -205,19 +223,18 @@ int main() {
     Client client;
     char map_size[5];
     char max_clients[5];
-    
+
     Client_init(&client);
     int choice = mainMenu(map_size, max_clients);
     Client_handleChoice(&client, choice, map_size, max_clients);
- 
+
     while (1) {
       Client_init(&client);
       clear();
       refresh();
 
-      choice = deathScreen();
+      choice = deathScreen(client.client_score);
       Client_handleChoice(&client, choice, NULL, NULL);
     }
     return 0;
 }
-

@@ -12,11 +12,11 @@ typedef enum {
     CONTINUE_GAME = 3
 } MenuOption;
 
-void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options);
-int displayMenu(MenuOption options[], int n_options);
+void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options, char *text);
+int displayMenu(MenuOption options[], int n_options, char *text);
 int mainMenu(char *mapSize, char *playerCount);
 int pauseMenu();
-int deathScreen();
+int deathScreen(int score);
 void newGameScreen(char *mapSize, char *playerCount);
 
 #endif

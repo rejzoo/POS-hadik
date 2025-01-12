@@ -8,9 +8,11 @@ const char *MenuOptionStrings[] = {
     "Continue Game"
 };
 
-void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options) {
+void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options, char *text) {
     int x = 2, y = 2;
-    box(menuWin, 0, 0); // Draw a border around the menu
+    box(menuWin, 0, 0); // Draw border around the menu
+    mvwprintw(menuWin, y, x, "%s", text);
+    y++;
     for (int i = 0; i < n_options; ++i) {
         if (i == highlight) {
             wattron(menuWin, A_REVERSE); // Highlight selected item
@@ -24,7 +26,7 @@ void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_optio
     wrefresh(menuWin);
 }
 
-int displayMenu(MenuOption options[], int n_options) {
+int displayMenu(MenuOption options[], int n_options, char *text) {
     int highlight = 0;
     int choice = -1;
 
@@ -41,7 +43,7 @@ int displayMenu(MenuOption options[], int n_options) {
     keypad(menuWin, TRUE);
 
     while (1) {
-        printMenu(menuWin, highlight, options, n_options);
+        printMenu(menuWin, highlight, options, n_options, text);
         int c = wgetch(menuWin);
         printf("%c\n", c);
         switch (c) {
@@ -67,7 +69,8 @@ int displayMenu(MenuOption options[], int n_options) {
 
 int mainMenu(char *mapSize, char *playerCount) {
   MenuOption options[] = {NEW_GAME, JOIN_GAME, EXIT_GAME}; 
-  int choice = displayMenu(options, 3);
+  char *text = "Main menu";
+  int choice = displayMenu(options, 3, text);
 
   if (choice == NEW_GAME) {
     newGameScreen(mapSize, playerCount); 
@@ -78,12 +81,15 @@ int mainMenu(char *mapSize, char *playerCount) {
 
 int pauseMenu() {
   MenuOption options[] = {CONTINUE_GAME, NEW_GAME, JOIN_GAME, EXIT_GAME};
-  return displayMenu(options, 4); 
+  char *text = "Pause menu";
+  return displayMenu(options, 4, text); 
 }
 
-int deathScreen() {
+int deathScreen(int score) {
   MenuOption options[] = {JOIN_GAME, EXIT_GAME};
-  return displayMenu(options, 2); 
+  char text[100];
+  snprintf(text, sizeof(text), "You died! Score: %d", score);
+  return displayMenu(options, 2, text); 
 }
 
 void newGameScreen(char *mapSize, char *playerCount) {

@@ -41,16 +41,16 @@ int acceptClientConnection(int server_fd, struct sockaddr_in *address) {
   socklen_t addrlen = sizeof(*address);
 
   int new_socket = accept(server_fd, (struct sockaddr *)address, &addrlen);
-    if (new_socket < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            // No incoming connections; return NULL
-            return -1;
-        } else {
-            perror("accept failed");
-            exit(EXIT_FAILURE);
-        }
+  if (new_socket < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      // Nothing
+      return -1;
+    } else {
+      perror("accept failed");
+      exit(EXIT_FAILURE);
     }
-    return new_socket; 
+  }
+  return new_socket;
 }
 
 int generateCords(GameState *game) { return (rand() % game->map_size) + 1; }
@@ -59,7 +59,7 @@ void *handleClient(void *arg) {
   ThreadArgs *args = (ThreadArgs *)arg;
   GameState *game = args->game;
   int client_socket = args->client_socket;
-  
+
   free(args);
   char key;
 
@@ -161,6 +161,7 @@ void addClient(GameState *game, int socket) {
 void removeClient(GameState *game, int socket) {
   if (socket < 0)
     return;
+
   for (int i = 0; i < game->max_clients; i++) {
     if (snakeGetSocket(&game->snakes[i]) == socket) {
       printf("Removing client: %d at index %d\n", socket, i);
@@ -186,6 +187,9 @@ void checkFoodCollision(GameState *game) {
             snakeGetY(&game->snakes[i]) == game->foods[j].y) {
 
           snakeGrow(&game->snakes[i]);
+
+          // TODO METHOD
+          game->snakes[i].score++;
 
           game->foods[j].x = generateCords(game);
           game->foods[j].y = generateCords(game);
@@ -221,6 +225,7 @@ void broadcastGameState(GameState *game) {
   pthread_mutex_lock(&game->mutex);
 
   char buffer[1024];
+  char clientBuffer[999];
   int offset = 0;
 
   offset +=
@@ -274,6 +279,14 @@ void broadcastGameState(GameState *game) {
     }
   }
 
+  for (int i = 0; i < game->max_clients; i++) {
+    if (snakeAlive(&game->snakes[i])) {
+      snprintf(clientBuffer, sizeof(clientBuffer), "%d", game->snakes[i].score);
+      //send(snakeGetSocket(&game->snakes[i]), clientBuffer, strlen(buffer), 0);
+      // DOES NOT WORK ?
+    }
+  }
+
   pthread_mutex_unlock(&game->mutex);
 }
 
@@ -302,7 +315,8 @@ void *gameLoop(void *arg) {
 }
 
 int outOfBounds(Snake *snake, GameState *game) {
-  if (!snake) return 0;
+  if (!snake)
+    return 0;
   if (snakeGetX(snake) < 1 || snakeGetX(snake) >= game->map_size + 1 ||
       snakeGetY(snake) < 1 || snakeGetY(snake) >= game->map_size + 1) {
     return 1;
@@ -342,6 +356,7 @@ int main(int argc, char *argv[]) {
     game.snakes[i].y = 0;
     game.snakes[i].dx = 0;
     game.snakes[i].dy = 0;
+    game.snakes[i].score = 0;
 
     for (int j = 0; j < MAX_LENGTH_SNAKE; j++) {
       game.snakes[i].body[j].x = 0;
@@ -368,6 +383,10 @@ int main(int argc, char *argv[]) {
     if (game.n_clients == 0 && difftime(time(NULL), last_connect) >= 10) {
       printf("10 seconds empty, shutting down server.\n");
       break;
+    }
+
+    if (game.n_clients > 0) {
+      last_connect = time(NULL);
     }
 
     int new_socket = acceptClientConnection(server_fd, &address);
