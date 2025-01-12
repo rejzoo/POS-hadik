@@ -111,10 +111,14 @@ void *handleClient(void *arg) {
       case 'd':
         snakeSetDirection(snake, 1, 0);
         break;
+      case 'p':
+        snakeTogglePause(snake);
+        break;
       }
       pthread_mutex_unlock(&game->mutex);
     } else if (bytes_read == 0) {
       printf("Client %d disconnected.\n", client_socket);
+      snakeSetAlive(snake, 0);
       break;
     } else {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -127,7 +131,6 @@ void *handleClient(void *arg) {
   }
 
   removeClient(game, client_socket);
-  printf("END OF CLIENT HANDLING %d", client_socket);
   return NULL;
 }
 
@@ -166,7 +169,8 @@ void removeClient(GameState *game, int socket) {
     if (snakeGetSocket(&game->snakes[i]) == socket) {
       printf("Removing client: %d at index %d\n", socket, i);
       close(socket);
-      game->snakes[i].socket = -1;
+      initSnakeOnServer(&game->snakes[i]);
+      printf("PAUSED ?? %d\n", snakeGetPause(&game->snakes[i]));
       break;
     }
   }
@@ -296,9 +300,9 @@ void *gameLoop(void *arg) {
   while (1) {
     pthread_mutex_lock(&game->mutex);
     for (int i = 0; i < game->max_clients; i++) {
-      if (snakeAlive(&game->snakes[i])) {
+      if (snakeGetPause(&game->snakes[i]) == 0 && snakeAlive(&game->snakes[i])) {
         snakeMove(&game->snakes[i]);
-
+        printf("MOVE\n");
         if (outOfBounds(&game->snakes[i], game)) {
           snakeSetAlive(&game->snakes[i], 0);
         }
@@ -325,6 +329,24 @@ int outOfBounds(Snake *snake, GameState *game) {
   return 0;
 }
 
+void initSnakeOnServer(Snake *snake) {
+    snake->socket = -1;
+    snake->alive = 0;
+    snake->n_body = 0;
+    snake->x = 0;
+    snake->y = 0;
+    snake->dx = 0;
+    snake->dy = 0;
+    snake->score = 0;
+    snake->pause = 0;
+
+    for (int j = 0; j < MAX_LENGTH_SNAKE; j++) {
+      snake->body[j].x = 0;
+      snake->body[j].y = 0;
+    }
+
+}
+
 int main(int argc, char *argv[]) {
   srand(time(NULL));
 
@@ -349,19 +371,7 @@ int main(int argc, char *argv[]) {
                     .mutex = PTHREAD_MUTEX_INITIALIZER};
 
   for (int i = 0; i < max_clients; i++) {
-    game.snakes[i].socket = -1;
-    game.snakes[i].alive = 0;
-    game.snakes[i].n_body = 0;
-    game.snakes[i].x = 0;
-    game.snakes[i].y = 0;
-    game.snakes[i].dx = 0;
-    game.snakes[i].dy = 0;
-    game.snakes[i].score = 0;
-
-    for (int j = 0; j < MAX_LENGTH_SNAKE; j++) {
-      game.snakes[i].body[j].x = 0;
-      game.snakes[i].body[j].y = 0;
-    }
+    initSnakeOnServer(&game.snakes[i]);
   }
 
   int server_fd;

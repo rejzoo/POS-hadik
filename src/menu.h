@@ -15,7 +15,7 @@ typedef enum {
 void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_options, char *text);
 int displayMenu(MenuOption options[], int n_options, char *text);
 int mainMenu(char *mapSize, char *playerCount);
-int pauseMenu();
+int pauseMenu(char *mapSize, char *playerCount);
 int deathScreen(int score);
 void newGameScreen(char *mapSize, char *playerCount);
 

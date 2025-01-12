@@ -32,7 +32,10 @@ typedef struct {
     int client_fd;
     int client_alive;
     int client_score;
+    int client_paused;
+    int end_game;
     pthread_t update_thread;
+    pthread_t input_thread;
     DataFromServer server_data;
 } Client;
 
@@ -44,6 +47,9 @@ void Client_drawGame(const DataFromServer *serverData, Client *client);
 void Client_parseData(const char *data1, const char *data2, DataFromServer *serverData, Client *client);
 void Client_freeDataFromServer(DataFromServer *serverData);
 void *Client_receiveUpdates(void *arg);
+void Client_togglePause(Client *client);
+void Client_handlePause(Client *client);
+void Client_closeIfOpen(Client *client);
 
 #endif
 

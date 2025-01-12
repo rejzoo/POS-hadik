@@ -12,7 +12,8 @@ void printMenu(WINDOW *menuWin, int highlight, MenuOption options[], int n_optio
     int x = 2, y = 2;
     box(menuWin, 0, 0); // Draw border around the menu
     mvwprintw(menuWin, y, x, "%s", text);
-    y++;
+    y+= 2;
+    
     for (int i = 0; i < n_options; ++i) {
         if (i == highlight) {
             wattron(menuWin, A_REVERSE); // Highlight selected item
@@ -79,10 +80,16 @@ int mainMenu(char *mapSize, char *playerCount) {
   return choice;
 }
 
-int pauseMenu() {
+int pauseMenu(char *mapSize, char *playerCount) {
   MenuOption options[] = {CONTINUE_GAME, NEW_GAME, JOIN_GAME, EXIT_GAME};
   char *text = "Pause menu";
-  return displayMenu(options, 4, text); 
+  int choice = displayMenu(options, 4, text); 
+
+  if (choice == NEW_GAME) {
+    newGameScreen(mapSize, playerCount);
+  }
+
+  return choice;
 }
 
 int deathScreen(int score) {

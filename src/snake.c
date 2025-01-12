@@ -46,8 +46,20 @@ void snakeSetDirection(Snake *snake, int dx, int dy) {
     snake->dy = dy;
 }
 
+void snakeTogglePause(Snake *snake) {
+    if (snakeGetPause(snake)) {
+        snakeSetPause(snake, 0);
+    } else {
+        snakeSetPause(snake, 1);
+    }
+}
+
 void snakeSetAlive(Snake *snake, int status) {
     snake->alive = status;
+}
+
+void snakeSetPause(Snake *snake, int status) {
+    snake->pause = status;
 }
 
 int snakeAlive(const Snake *snake) {
@@ -76,4 +88,8 @@ Position snakeGetBodyPart(Snake *snake, int index) {
 
 int snakeGetSocket(Snake *snake) {
     return snake->socket;
+}
+
+int snakeGetPause(Snake *snake) {
+    return snake->pause;
 }

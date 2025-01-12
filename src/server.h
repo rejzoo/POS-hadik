@@ -41,5 +41,6 @@ void broadcastGameState(GameState *game);
 void *gameLoop(void *arg);
 int generateCords(GameState *game);
 int outOfBounds(Snake *snake, GameState *game);
+void initSnakeOnServer(Snake *snake);
 
 #endif

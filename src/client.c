@@ -4,6 +4,8 @@ void Client_init(Client *client) {
     client->client_fd = -1;
     client->client_alive = 1;
     client->client_score = 0;
+    client->client_paused = 0;
+    client->end_game = 0;
     client->server_data.snakes_heads = NULL;
     client->server_data.snakes_bodies = NULL;
     client->server_data.foods = NULL;
@@ -25,6 +27,7 @@ void Client_startServer(char *map_size, char *max_clients) {
 }
 
 void Client_drawGame(const DataFromServer *serverData, Client *client) {
+    if (client->client_paused) return;
     clear();
     int map_size = serverData->map_size;
 
@@ -59,6 +62,7 @@ void Client_drawGame(const DataFromServer *serverData, Client *client) {
     }
 
     printw("Number of players: %d\n", serverData->n_snakes);
+    printw("PAUSED: %d\n", client->client_paused);
     //printw("Score: %d", client->client_score);
 
     refresh();
@@ -149,8 +153,29 @@ void *Client_receiveUpdates(void *arg) {
       Client_parseData(buffer, clientBuffer, &client->server_data, client);
       Client_drawGame(&client->server_data, client);
     }
-    
+
     Client_freeDataFromServer(&client->server_data);
+    return NULL;
+}
+
+void *Client_input(void *arg) {
+      Client *client = (Client *)arg;
+
+      while (client->client_alive) {
+        if (client->client_paused) {
+            continue;
+        }
+
+        char key = getch();
+        if (key == 'w' || key == 'a' || key == 's' || key == 'd' || key == 'p') {
+            if (key == 'p') Client_togglePause(client);
+            send(client->client_fd, &key, 1, 0);
+        }
+        if (key == 'q') break;
+
+        usleep(100000);
+    }
+
     return NULL;
 }
 
@@ -185,38 +210,59 @@ void Client_joinGame(Client *client) {
     nodelay(stdscr, TRUE);
 
     pthread_create(&client->update_thread, NULL, Client_receiveUpdates, client);
+    pthread_create(&client->input_thread, NULL, Client_input, client);
 
-    while (client->client_alive) {
-        char key = getch();
-        if (key == 'w' || key == 'a' || key == 's' || key == 'd') {
-            send(client->client_fd, &key, 1, 0);
-        }
-        if (key == 'q') break;
-
-        usleep(100000);
-    }
-
-    if (client->client_fd >= 0) {
-      close(client->client_fd);
-    }
-    pthread_cancel(client->update_thread);
-    endwin();
+    pthread_detach(client->update_thread);
+    pthread_detach(client->input_thread);
 }
 
 void Client_handleChoice(Client *client, int choice, char *map_size, char *max_clients) {
     switch (choice) {
         case 0:
+            Client_closeIfOpen(client);
             Client_startServer(map_size, max_clients);
             Client_joinGame(client);
             break;
         case 1:
+            Client_closeIfOpen(client);
             close(client->client_fd);
             Client_joinGame(client);
             break;
         case 2:
-            close(client->client_fd);
-            exit(EXIT_SUCCESS);
+            Client_closeIfOpen(client);
+            client->end_game = 1;
+        case 3: {
+            char key = 'p';
+            send(client->client_fd, &key, 1, 0);
+            Client_togglePause(client);
+            break;
+          }
     }
+}
+
+void Client_togglePause(Client *client) {
+    if (client->client_paused == 0) {
+      client->client_paused = 1;
+    } else {
+      client->client_paused = 0;
+    }
+}
+
+void Client_closeIfOpen(Client *client) {
+    if (client->client_fd != -1) {
+      close(client->client_fd);
+      pthread_cancel(client->input_thread);
+      pthread_cancel(client->update_thread);
+    }
+
+    Client_init(client);
+}
+
+void Client_handlePause(Client *client) {
+    char map_size[5];
+    char max_clients[5];
+    int choice = pauseMenu(map_size, max_clients);
+    Client_handleChoice(client, choice, map_size, max_clients);
 }
 
 int main() {
@@ -228,13 +274,22 @@ int main() {
     int choice = mainMenu(map_size, max_clients);
     Client_handleChoice(&client, choice, map_size, max_clients);
 
-    while (1) {
-      Client_init(&client);
-      clear();
-      refresh();
-
-      choice = deathScreen(client.client_score);
-      Client_handleChoice(&client, choice, NULL, NULL);
+    while (!client.end_game) {
+      if (!client.client_alive) {
+        clear();
+        refresh();
+        choice = deathScreen(client.client_score);
+        Client_handleChoice(&client, choice, NULL, NULL);
+      } else if (client.client_paused) {
+        choice = pauseMenu(map_size, max_clients);
+        Client_handleChoice(&client, choice, map_size, max_clients);
+      }
     }
+
+    if (client.client_fd != -1) {
+      close(client.client_fd);
+    }
+
+    endwin();
     return 0;
 }
