@@ -1,7 +1,5 @@
 #include "server.h"
 
-
-
 int createServerSocket() {
   int server_fd;
   if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -288,8 +286,9 @@ void broadcastGameState(GameState *game) {
   for (int i = 0; i < game->max_clients; i++) {
     if (snakeAlive(&game->snakes[i])) {
       snprintf(clientBuffer, sizeof(clientBuffer), "%d", game->snakes[i].score);
-      //send(snakeGetSocket(&game->snakes[i]), clientBuffer, strlen(buffer), 0);
-      // DOES NOT WORK ?
+      // send(snakeGetSocket(&game->snakes[i]), clientBuffer, strlen(buffer),
+      // 0);
+      //  DOES NOT WORK ?
     }
   }
 
@@ -302,7 +301,8 @@ void *gameLoop(void *arg) {
   while (1) {
     pthread_mutex_lock(&game->mutex);
     for (int i = 0; i < game->max_clients; i++) {
-      if (snakeGetPause(&game->snakes[i]) == 0 && snakeAlive(&game->snakes[i])) {
+      if (snakeGetPause(&game->snakes[i]) == 0 &&
+          snakeAlive(&game->snakes[i])) {
         snakeMove(&game->snakes[i]);
         if (outOfBounds(&game->snakes[i], game)) {
           snakeSetAlive(&game->snakes[i], 0);
@@ -331,21 +331,20 @@ int outOfBounds(Snake *snake, GameState *game) {
 }
 
 void initSnakeOnServer(Snake *snake) {
-    snake->socket = -1;
-    snake->alive = 0;
-    snake->n_body = 0;
-    snake->x = 0;
-    snake->y = 0;
-    snake->dx = 0;
-    snake->dy = 0;
-    snake->score = 0;
-    snake->pause = 0;
+  snake->socket = -1;
+  snake->alive = 0;
+  snake->n_body = 0;
+  snake->x = 0;
+  snake->y = 0;
+  snake->dx = 0;
+  snake->dy = 0;
+  snake->score = 0;
+  snake->pause = 0;
 
-    for (int j = 0; j < MAX_LENGTH_SNAKE; j++) {
-      snake->body[j].x = 0;
-      snake->body[j].y = 0;
-    }
-
+  for (int j = 0; j < MAX_LENGTH_SNAKE; j++) {
+    snake->body[j].x = 0;
+    snake->body[j].y = 0;
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -355,14 +354,14 @@ int main(int argc, char *argv[]) {
     perror("Invalid number of arguments");
     exit(EXIT_FAILURE);
   }
-  
+
   int map_size = atoi(argv[1]);
   int max_clients = atoi(argv[2]);
   // 4 - STANDARD | 5 - TIMED
   int game_mode = atoi(argv[3]);
   int game_time = atoi(argv[4]);
 
-  printf("%d %d %d %d\n", map_size, max_clients, game_mode, game_time); 
+  printf("%d %d %d %d\n", map_size, max_clients, game_mode, game_time);
 
   if (map_size <= 0 || max_clients <= 0) {
     perror("Map size and max clients must be > 0");
@@ -400,7 +399,8 @@ int main(int argc, char *argv[]) {
   time_t server_start = time(NULL);
 
   while (1) {
-    if (game_mode == 4 && game.n_clients == 0 && difftime(time(NULL), last_connect) >= 10) {
+    if (game_mode == 4 && game.n_clients == 0 &&
+        difftime(time(NULL), last_connect) >= 10) {
       printf("10 seconds empty, shutting down server.\n");
       break;
     }

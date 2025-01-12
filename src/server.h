@@ -2,16 +2,16 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <netinet/in.h> // sockaddr_in
-#include <unistd.h>     // close()
-#include <sys/socket.h> // socket functions
-#include <stdlib.h>     // exit()
-#include <stdio.h>      // perror()
-#include <string.h>     // memset()
-#include <pthread.h>    // threads
-#include <fcntl.h>
-#include <errno.h>
 #include "snake.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h> // sockaddr_in
+#include <pthread.h>    // threads
+#include <stdio.h>      // perror()
+#include <stdlib.h>     // exit()
+#include <string.h>     // memset()
+#include <sys/socket.h> // socket functions
+#include <unistd.h>     // close()
 
 typedef struct {
   Snake *snakes;
@@ -24,8 +24,8 @@ typedef struct {
 } GameState;
 
 typedef struct {
-    GameState *game;
-    int client_socket;
+  GameState *game;
+  int client_socket;
 } ThreadArgs;
 
 int createServerSocket();

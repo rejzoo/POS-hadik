@@ -2,8 +2,8 @@
 #ifndef SNAKE_H
 #define SNAKE_H
 
-#include <stdlib.h>
 #include "utils.h"
+#include <stdlib.h>
 
 typedef struct {
   Position body[MAX_LENGTH_SNAKE];
